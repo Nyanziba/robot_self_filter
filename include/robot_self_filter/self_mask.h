@@ -31,10 +31,10 @@
 #define ROBOT_SELF_FILTER_SELF_MASK_
 
 #include <pcl/point_types.h>
-#include <pcl_ros/point_cloud.h>
-#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <sensor_msgs/msgs/PointCloud2.hpp>
 #include <robot_self_filter/bodies.h>
-#include <tf/transform_listener.h>
+#include <tf2_ros/transform_listener.h>
 #include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
 #include <string>
@@ -61,10 +61,10 @@ struct LinkInfo
   double scale;
 };
     
-    static inline tf::Transform urdfPose2TFTransform(const urdf::Pose &pose)
+    static inline tf2::Transform urdfPose2tf2Transform(const urdf::Pose &pose)
     {
-      return tf::Transform(tf::Quaternion(pose.rotation.x, pose.rotation.y, pose.rotation.z, pose.rotation.w),
-			   tf::Vector3(pose.position.x, pose.position.y, pose.position.z));
+      return tf2::Transform(tf2::Quaternion(pose.rotation.x, pose.rotation.y, pose.rotation.z, pose.rotation.w),
+			   tf2::Vector3(pose.position.x, pose.position.y, pose.position.z));
     }
 
     static shapes::Shape* constructShape(const urdf::Geometry *geom)
@@ -156,7 +156,7 @@ struct LinkInfo
 	    std::string   name;
 	    bodies::Body *body;
 	    bodies::Body *unscaledBody;
-	    tf::Transform   constTransf;
+	    tf2::Transform   constTransf;
 	    double        volume;
 	};
 	
@@ -172,7 +172,7 @@ struct LinkInfo
 	typedef pcl::PointCloud<PointT> PointCloud;
 
 	/** \brief Construct the filter */
-	SelfMask(tf::TransformListener &tf, const std::vector<LinkInfo> &links) : tf_(tf)
+	SelfMask(tf2::TransformListener &tf2, const std::vector<LinkInfo> &links) : tf2_(tf2)
 	{
 	    configure(links);
 	}
@@ -211,7 +211,7 @@ struct LinkInfo
 	    the first intersection point on each body.
 	 */
 	void maskIntersection(const PointCloud& data_in, const std::string &sensor_frame, const double min_sensor_dist,
-			      std::vector<int> &mask, const boost::function<void(const tf::Vector3&)> &intersectionCallback = NULL)
+			      std::vector<int> &mask, const boost::function<void(const tf2::Vector3&)> &intersectionCallback = NULL)
         {
           mask.resize(data_in.points.size());
           if (bodies_.empty()) {
@@ -236,8 +236,8 @@ struct LinkInfo
 	    been seen. If the mask element is INSIDE, the point is inside
 	    the robot. The origin of the sensor is specified as well.
 	 */
-	void maskIntersection(const PointCloud& data_in, const tf::Vector3 &sensor_pos, const double min_sensor_dist,
-			      std::vector<int> &mask, const boost::function<void(const tf::Vector3&)> &intersectionCallback = NULL)
+	void maskIntersection(const PointCloud& data_in, const tf2::Vector3 &sensor_pos, const double min_sensor_dist,
+			      std::vector<int> &mask, const boost::function<void(const tf2::Vector3&)> &intersectionCallback = NULL)
         {
           mask.resize(data_in.points.size());
           if (bodies_.empty())
@@ -261,18 +261,18 @@ struct LinkInfo
     for (unsigned int i = 0 ; i < bs ; ++i)
     {
       std::string err;
-      if(!tf_.waitForTransform(header.frame_id, bodies_[i].name, header.stamp, ros::Duration(.1), ros::Duration(.01), &err)) {
-        ROS_ERROR("WaitForTransform timed out from %s to %s after 100ms.  Error string: %s", bodies_[i].name.c_str(), header.frame_id.c_str(), err.c_str());
+      if(!tf2_.waitf2orTransform(header.frame_id, bodies_[i].name, header.stamp, ros::Duration(.1), ros::Duration(.01), &err)) {
+        ROS_ERROR("Waitf2orTransform timed out from %s to %s after 100ms.  Error string: %s", bodies_[i].name.c_str(), header.frame_id.c_str(), err.c_str());
         
       } 
       
       // find the transform between the link's frame and the pointcloud frame
-      tf::StampedTransform transf;
+      tf2::StampedTransform transf;
       try
       {
-        tf_.lookupTransform(header.frame_id, bodies_[i].name, header.stamp, transf);
+        tf2_.lookupTransform(header.frame_id, bodies_[i].name, header.stamp, transf);
       }
-      catch(tf::TransformException& ex)
+      catch(tf2::TransformException& ex)
       {
         transf.setIdentity();
         ROS_ERROR("Unable to lookup transform from %s to %s. Exception: %s", bodies_[i].name.c_str(), header.frame_id.c_str(), ex.what());	
@@ -290,7 +290,7 @@ struct LinkInfo
 	
         /** \brief Assume subsequent calls to getMaskX() will be in the frame passed to this function.
 	 *  Also specify which possition to assume for the sensor (frame is not needed) */
-	void assumeFrame(const std_msgs::Header& header, const tf::Vector3 &sensor_pos, const double min_sensor_dist)
+	void assumeFrame(const std_msgs::Header& header, const tf2::Vector3 &sensor_pos, const double min_sensor_dist)
         {
           assumeFrame(header);
           sensor_pos_ = sensor_pos;
@@ -304,8 +304,8 @@ struct LinkInfo
           assumeFrame(header);
 
           std::string err;
-          if(!tf_.waitForTransform(header.frame_id, sensor_frame, header.stamp, ros::Duration(.1), ros::Duration(.01), &err)) {
-            ROS_ERROR("WaitForTransform timed out from %s to %s after 100ms.  Error string: %s", sensor_frame.c_str(), header.frame_id.c_str(), err.c_str());
+          if(!tf2_.waitf2orTransform(header.frame_id, sensor_frame, header.stamp, ros::Duration(.1), ros::Duration(.01), &err)) {
+            ROS_ERROR("Waitf2orTransform timed out from %s to %s after 100ms.  Error string: %s", sensor_frame.c_str(), header.frame_id.c_str(), err.c_str());
             sensor_pos_.setValue(0, 0, 0);
           } 
 
@@ -313,11 +313,11 @@ struct LinkInfo
           // compute the origin of the sensor in the frame of the cloud
           try
           {
-            tf::StampedTransform transf;
-            tf_.lookupTransform(header.frame_id, sensor_frame, header.stamp, transf);
+            tf2::StampedTransform transf;
+            tf2_.lookupTransform(header.frame_id, sensor_frame, header.stamp, transf);
             sensor_pos_ = transf.getOrigin();
           }
-          catch(tf::TransformException& ex)
+          catch(tf2::TransformException& ex)
           {
             sensor_pos_.setValue(0, 0, 0);
             ROS_ERROR("Unable to lookup transform from %s to %s.  Exception: %s", sensor_frame.c_str(), header.frame_id.c_str(), ex.what());
@@ -329,7 +329,7 @@ struct LinkInfo
 	
         /** \brief Get the containment mask (INSIDE or OUTSIDE) value for an individual point. No
 	    setup is performed, assumeFrame() should be called before use */
-	int  getMaskContainment(const tf::Vector3 &pt) const
+	int  getMaskContainment(const tf2::Vector3 &pt) const
         {
           const unsigned int bs = bodies_.size();
           int out = OUTSIDE;
@@ -343,21 +343,21 @@ struct LinkInfo
 	    setup is performed, assumeFrame() should be called before use */
 	int  getMaskContainment(double x, double y, double z) const
         {
-          return getMaskContainment(tf::Vector3(x, y, z));
+          return getMaskContainment(tf2::Vector3(x, y, z));
         }
 	
 	/** \brief Get the intersection mask (INSIDE, OUTSIDE or
 	    SHADOW) value for an individual point. No setup is
 	    performed, assumeFrame() should be called before use */
-	int  getMaskIntersection(double x, double y, double z, const boost::function<void(const tf::Vector3&)> &intersectionCallback = NULL) const
+	int  getMaskIntersection(double x, double y, double z, const boost::function<void(const tf2::Vector3&)> &intersectionCallback = NULL) const
         {
-          return getMaskIntersection(tf::Vector3(x, y, z), intersectionCallback);
+          return getMaskIntersection(tf2::Vector3(x, y, z), intersectionCallback);
         }
 	
 	/** \brief Get the intersection mask (INSIDE, OUTSIDE or
 	    SHADOW) value for an individual point. No setup is
 	    performed, assumeFrame() should be called before use */
-	int  getMaskIntersection(const tf::Vector3 &pt, const boost::function<void(const tf::Vector3&)> &intersectionCallback = NULL) const
+	int  getMaskIntersection(const tf2::Vector3 &pt, const boost::function<void(const tf2::Vector3&)> &intersectionCallback = NULL) const
         {
           const unsigned int bs = bodies_.size();
 
@@ -372,15 +372,15 @@ struct LinkInfo
           {
 
             // we check if the point is a shadow point 
-            tf::Vector3 dir(sensor_pos_ - pt);
-            tfScalar  lng = dir.length();
+            tf2::Vector3 dir(sensor_pos_ - pt);
+            tf2Scalar  lng = dir.length();
             if (lng < min_sensor_dist_)
               out = INSIDE;
             else
             {
               dir /= lng;
 	    
-              std::vector<tf::Vector3> intersections;
+              std::vector<tf2::Vector3> intersections;
               for (unsigned int j = 0 ; out == OUTSIDE && j < bs ; ++j)
               {
                 // get the 1st intersection of ray pt->sensor
@@ -491,9 +491,9 @@ struct LinkInfo
             {
               sl.name = links[i].name;
               
-              // collision models may have an offset, in addition to what TF gives
+              // collision models may have an offset, in addition to what tf2 gives
               // so we keep it around
-              sl.constTransf = urdfPose2TFTransform(link->collision->origin);
+              sl.constTransf = urdfPose2tf2Transform(link->collision->origin);
               
               sl.body->setScale(links[i].scale);
               sl.body->setPadding(links[i].padding);
@@ -550,13 +550,13 @@ struct LinkInfo
           // compute a sphere that bounds the entire robot
           bodies::BoundingSphere bound;
           bodies::mergeBoundingSpheres(bspheres_, bound);	  
-          tfScalar radiusSquared = bound.radius * bound.radius;
+          tf2Scalar radiusSquared = bound.radius * bound.radius;
     
           // we now decide which points we keep
           //#pragma omp parallel for schedule(dynamic) 
           for (int i = 0 ; i < (int)np ; ++i)
           {
-            tf::Vector3 pt = tf::Vector3(data_in.points[i].x, data_in.points[i].y, data_in.points[i].z);
+            tf2::Vector3 pt = tf2::Vector3(data_in.points[i].x, data_in.points[i].y, data_in.points[i].z);
             int out = OUTSIDE;
             if (bound.center.distance2(pt) < radiusSquared)
               for (unsigned int j = 0 ; out == OUTSIDE && j < bs ; ++j)
@@ -568,7 +568,7 @@ struct LinkInfo
         }
 
 	/** \brief Perform the actual mask computation. */
-	void maskAuxIntersection(const PointCloud& data_in, std::vector<int> &mask, const boost::function<void(const tf::Vector3&)> &callback)
+	void maskAuxIntersection(const PointCloud& data_in, std::vector<int> &mask, const boost::function<void(const tf2::Vector3&)> &callback)
         {
           const unsigned int bs = bodies_.size();
           const unsigned int np = data_in.points.size();
@@ -576,7 +576,7 @@ struct LinkInfo
           // compute a sphere that bounds the entire robot
           bodies::BoundingSphere bound;
           bodies::mergeBoundingSpheres(bspheres_, bound);	  
-          tfScalar radiusSquared = bound.radius * bound.radius;
+          tf2Scalar radiusSquared = bound.radius * bound.radius;
 
           //std::cout << "Testing " << np << " points\n";
 
@@ -586,7 +586,7 @@ struct LinkInfo
           {
             bool print = false;
             //if(i%100 == 0) print = true;
-            tf::Vector3 pt = tf::Vector3(data_in.points[i].x, data_in.points[i].y, data_in.points[i].z);
+            tf2::Vector3 pt = tf2::Vector3(data_in.points[i].x, data_in.points[i].y, data_in.points[i].z);
             int out = OUTSIDE;
 
             // we first check is the point is in the unscaled body. 
@@ -603,8 +603,8 @@ struct LinkInfo
             if (out == OUTSIDE)
             {
               // we check if the point is a shadow point 
-              tf::Vector3 dir(sensor_pos_ - pt);
-              tfScalar  lng = dir.length();
+              tf2::Vector3 dir(sensor_pos_ - pt);
+              tf2Scalar  lng = dir.length();
               if (lng < min_sensor_dist_) {
 		out = INSIDE;
                 //std::cout << "Point " << i << " less than min sensor distance away\n";
@@ -613,7 +613,7 @@ struct LinkInfo
               {		
 		dir /= lng;
 
-		std::vector<tf::Vector3> intersections;
+		std::vector<tf2::Vector3> intersections;
 		for (unsigned int j = 0 ; out == OUTSIDE && j < bs ; ++j) {
                   // get the 1st intersection of ray pt->sensor
                   intersections.clear(); // intersectsRay doesn't clear the vector...
@@ -642,10 +642,10 @@ struct LinkInfo
           }
         }
 	
-	tf::TransformListener              &tf_;
+	tf2::TransformListener              &tf2_;
 	ros::NodeHandle                     nh_;
 	
-	tf::Vector3                           sensor_pos_;
+	tf2::Vector3                           sensor_pos_;
 	double                              min_sensor_dist_;
 	
 	std::vector<SeeLink>                bodies_;

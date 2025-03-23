@@ -34,10 +34,10 @@
 
 /** \author Ioan Sucan */
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <sstream>
 #include "robot_self_filter/self_see_filter.h"
-#include <tf/message_filter.h>
+#include <tf2_ros/message_filter.h>
 #include <message_filters/subscriber.h>
 
 namespace robot_self_filter
@@ -114,8 +114,8 @@ private:
     {
       ROS_DEBUG("Valid frames were passed in. We'll filter them.");
       sub_.subscribe(root_handle_, "cloud_in", max_queue_size_);
-      mn_.reset(new tf::MessageFilter<sensor_msgs::PointCloud2>(sub_, tf_, "", max_queue_size_));
-      mn_->setTargetFrames(frames_);
+      mn_.reset(new tf2::MessageFilter<sensor_msgs::PointCloud2>(sub_, tf2_, "", max_queue_size_));
+      mn_->setTargetf2rames(frames_);
       mn_->registerCallback(boost::bind(&SelfFilter::cloudCallback, this, _1));
     }
   }
@@ -173,11 +173,11 @@ private:
 
   }
   
-  tf::TransformListener                                 tf_;
-  //tf::MessageNotifier<robot_self_filter::PointCloud>           *mn_;
+  tf2::TransformListener                                 tf2_;
+  //tf2::MessageNotifier<robot_self_filter::PointCloud>           *mn_;
   ros::NodeHandle                                       nh_, root_handle_;
 
-  boost::shared_ptr<tf::MessageFilter<sensor_msgs::PointCloud2> >          mn_;
+  boost::shared_ptr<tf2::MessageFilter<sensor_msgs::PointCloud2> >          mn_;
   message_filters::Subscriber<sensor_msgs::PointCloud2> sub_;
 
   filters::SelfFilter<pcl::PointXYZ> *self_filter_;

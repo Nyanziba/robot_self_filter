@@ -30,7 +30,7 @@
 #include "robot_self_filter/self_mask.h"
 #include <urdf/model.h>
 #include <resource_retriever/retriever.h>
-#include <ros/console.h>
+#include <rclcpp/console.h>
 #include <algorithm>
 #include <sstream>
 #include <climits>

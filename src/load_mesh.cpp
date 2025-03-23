@@ -38,7 +38,7 @@
 #include <set>
 #include "robot_self_filter/shapes.h"
 #include <resource_retriever/retriever.h>
-#include <ros/assert.h>
+#include <rcpputils/asserts.hpp>
 #include <tinyxml.h>
 #if defined(ASSIMP_UNIFIED_HEADER_NAMES)
 #include <assimp/Importer.hpp>

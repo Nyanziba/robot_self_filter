@@ -36,8 +36,8 @@
 
 #include <cstdio>
 
-#include <ros/ros.h>
-#include <visualization_msgs/Marker.h>
+#include <rclcpp/rclcpp.hpp>
+#include <visualization_msgs/msgs/Marker.hpp>
 #include "robot_self_filter/self_mask.h"
 
 class TestSelfFilter

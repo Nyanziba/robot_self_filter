@@ -32,7 +32,7 @@
 
 #include <filters/filter_base.h>
 #include <robot_self_filter/self_mask.h>
-#include <ros/console.h>
+#include <rclcpp/logging.hpp>
 
 namespace filters
 {
@@ -101,7 +101,7 @@ public:
         }      
       }
     }
-    sm_ = new robot_self_filter::SelfMask<PointT>(tf_, links);
+    sm_ = new robot_self_filter::SelfMask<PointT>(tf2_, links);
     if (!sensor_frame_.empty())
       ROS_INFO("Self filter is removing shadow points for sensor in frame '%s'. Minimum distance to sensor is %f.", sensor_frame_.c_str(), min_sensor_dist_);
   }
@@ -245,7 +245,7 @@ public:
     
 protected:
     
-  tf::TransformListener tf_;
+  tf2::TransformListener tf2_;
   robot_self_filter::SelfMask<PointT>* sm_;
   
   ros::NodeHandle nh_;

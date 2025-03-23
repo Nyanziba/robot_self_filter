@@ -74,7 +74,7 @@ void bodies::mergeBoundingSpheres(const std::vector<BoundingSphere> &spheres, Bo
 {
     if (spheres.empty())
     {
-	mergedSphere.center.setValue(tfScalar(0), tfScalar(0), tfScalar(0));
+	mergedSphere.center.setValue(tf2Scalar(0), tf2Scalar(0), tf2Scalar(0));
 	mergedSphere.radius = 0.0;
     }
     else
@@ -93,7 +93,7 @@ void bodies::mergeBoundingSpheres(const std::vector<BoundingSphere> &spheres, Bo
 	    else
 		if (d + spheres[i].radius > mergedSphere.radius)
 		{
-		    tf::Vector3 delta = mergedSphere.center - spheres[i].center;
+		    tf2::Vector3 delta = mergedSphere.center - spheres[i].center;
 		    mergedSphere.radius = (delta.length() + spheres[i].radius + mergedSphere.radius)/2.0;
 		    mergedSphere.center = delta.normalized() * (mergedSphere.radius - spheres[i].radius) + spheres[i].center;
 		}
@@ -107,9 +107,9 @@ namespace bodies
     
     /** \brief Compute the square of the distance between a ray and a point 
 	Note: this requires 'dir' to be normalized */
-    static inline double distanceSQR(const tf::Vector3& p, const tf::Vector3& origin, const tf::Vector3& dir)
+    static inline double distanceSQR(const tf2::Vector3& p, const tf2::Vector3& origin, const tf2::Vector3& dir)
     {
-	tf::Vector3 a = p - origin;
+	tf2::Vector3 a = p - origin;
 	double d = dir.dot(a);
 	return a.length2() - d * d;
     }
@@ -120,9 +120,9 @@ namespace bodies
 	// temp structure for intersection points (used for ordering them)
 	struct intersc
 	{
-	    intersc(const tf::Vector3 &_pt, const double _tm) : pt(_pt), time(_tm) {}
+	    intersc(const tf2::Vector3 &_pt, const double _tm) : pt(_pt), time(_tm) {}
 	    
-	    tf::Vector3 pt;
+	    tf2::Vector3 pt;
 	    double    time;
 	};
 	
@@ -137,7 +137,7 @@ namespace bodies
     }
 }
 
-bool bodies::Sphere::containsPoint(const tf::Vector3 &p, bool verbose) const 
+bool bodies::Sphere::containsPoint(const tf2::Vector3 &p, bool verbose) const 
 {
     return (m_center - p).length2() < m_radius2;
 }
@@ -165,17 +165,17 @@ void bodies::Sphere::computeBoundingSphere(BoundingSphere &sphere) const
     sphere.radius = m_radiusU;
 }
 
-bool bodies::Sphere::intersectsRay(const tf::Vector3& origin, const tf::Vector3& dir, std::vector<tf::Vector3> *intersections, unsigned int count) const
+bool bodies::Sphere::intersectsRay(const tf2::Vector3& origin, const tf2::Vector3& dir, std::vector<tf2::Vector3> *intersections, unsigned int count) const
 {
     if (distanceSQR(m_center, origin, dir) > m_radius2) return false;
     
     bool result = false;
     
-    tf::Vector3 cp = origin - m_center;
+    tf2::Vector3 cp = origin - m_center;
     double dpcpv = cp.dot(dir);
     
-    tf::Vector3 w = cp - dpcpv * dir;
-    tf::Vector3 Q = m_center + w;
+    tf2::Vector3 w = cp - dpcpv * dir;
+    tf2::Vector3 Q = m_center + w;
     double x = m_radius2 - w.length2();
     
     if (fabs(x) < ZERO)
@@ -193,8 +193,8 @@ bool bodies::Sphere::intersectsRay(const tf::Vector3& origin, const tf::Vector3&
 	{    
 	    x = sqrt(x);
 	    w = dir * x;
-	    tf::Vector3 A = Q - w;
-	    tf::Vector3 B = Q + w;
+	    tf2::Vector3 A = Q - w;
+	    tf2::Vector3 B = Q + w;
 	    w = A - origin;
 	    double dpAv = w.dot(dir);
 	    w = B - origin;
@@ -221,9 +221,9 @@ bool bodies::Sphere::intersectsRay(const tf::Vector3& origin, const tf::Vector3&
     return result;
 }
 
-bool bodies::Cylinder::containsPoint(const tf::Vector3 &p, bool verbose) const 
+bool bodies::Cylinder::containsPoint(const tf2::Vector3 &p, bool verbose) const 
 {
-    tf::Vector3 v = p - m_center;		
+    tf2::Vector3 v = p - m_center;		
     double pH = v.dot(m_normalH);
     
     if (fabs(pH) > m_length2)
@@ -256,7 +256,7 @@ void bodies::Cylinder::updateInternalData(void)
     m_radiusBSqr = m_length2 * m_length2 + m_radius2;
     m_radiusB = sqrt(m_radiusBSqr);
     
-    const tf::Matrix3x3& basis = m_pose.getBasis();
+    const tf2::Matrix3x3& basis = m_pose.getBasis();
     m_normalB1 = basis.getColumn(0);
     m_normalB2 = basis.getColumn(1);
     m_normalH  = basis.getColumn(2);
@@ -277,7 +277,7 @@ void bodies::Cylinder::computeBoundingSphere(BoundingSphere &sphere) const
     sphere.radius = m_radiusB;
 }
 
-bool bodies::Cylinder::intersectsRay(const tf::Vector3& origin, const tf::Vector3& dir, std::vector<tf::Vector3> *intersections, unsigned int count) const
+bool bodies::Cylinder::intersectsRay(const tf2::Vector3& origin, const tf2::Vector3& dir, std::vector<tf2::Vector3> *intersections, unsigned int count) const
 {
     if (distanceSQR(m_center, origin, dir) > m_radiusBSqr) return false;
 
@@ -292,8 +292,8 @@ bool bodies::Cylinder::intersectsRay(const tf::Vector3& origin, const tf::Vector
 	
 	if (t1 > 0.0)
 	{
-	    tf::Vector3 p1(origin + dir * t1);
-	    tf::Vector3 v1(p1 - m_center);
+	    tf2::Vector3 p1(origin + dir * t1);
+	    tf2::Vector3 v1(p1 - m_center);
 	    v1 = v1 - m_normalH.dot(v1) * m_normalH;
 	    if (v1.length2() < m_radius2 + ZERO)
 	    {
@@ -308,8 +308,8 @@ bool bodies::Cylinder::intersectsRay(const tf::Vector3& origin, const tf::Vector
 	double t2 = (tmp2 - m_d2) / tmp;
 	if (t2 > 0.0)
 	{
-	    tf::Vector3 p2(origin + dir * t2);
-	    tf::Vector3 v2(p2 - m_center);
+	    tf2::Vector3 p2(origin + dir * t2);
+	    tf2::Vector3 v2(p2 - m_center);
 	    v2 = v2 - m_normalH.dot(v2) * m_normalH;
 	    if (v2.length2() < m_radius2 + ZERO)
 	    {
@@ -325,8 +325,8 @@ bool bodies::Cylinder::intersectsRay(const tf::Vector3& origin, const tf::Vector
     if (ipts.size() < 2)
     {
 	// intersect with infinite cylinder
-	tf::Vector3 VD(m_normalH.cross(dir));
-	tf::Vector3 ROD(m_normalH.cross(origin - m_center));
+	tf2::Vector3 VD(m_normalH.cross(dir));
+	tf2::Vector3 ROD(m_normalH.cross(origin - m_center));
 	double a = VD.length2();
 	double b = 2.0 * ROD.dot(VD);
 	double c = ROD.length2() - m_radius2;
@@ -340,8 +340,8 @@ bool bodies::Cylinder::intersectsRay(const tf::Vector3& origin, const tf::Vector
 	    
 	    if (t1 > 0.0)
 	    {
-		tf::Vector3 p1(origin + dir * t1);
-		tf::Vector3 v1(m_center - p1);
+		tf2::Vector3 p1(origin + dir * t1);
+		tf2::Vector3 v1(m_center - p1);
 		
 		if (fabs(m_normalH.dot(v1)) < m_length2 + ZERO)
 		{
@@ -355,8 +355,8 @@ bool bodies::Cylinder::intersectsRay(const tf::Vector3& origin, const tf::Vector
 	    
 	    if (t2 > 0.0)
 	    {
-		tf::Vector3 p2(origin + dir * t2);    
-		tf::Vector3 v2(m_center - p2);
+		tf2::Vector3 p2(origin + dir * t2);    
+		tf2::Vector3 v2(m_center - p2);
 		
 		if (fabs(m_normalH.dot(v2)) < m_length2 + ZERO)
 		{
@@ -380,11 +380,11 @@ bool bodies::Cylinder::intersectsRay(const tf::Vector3& origin, const tf::Vector
     return true;
 }
 
-bool bodies::Box::containsPoint(const tf::Vector3 &p, bool verbose) const 
+bool bodies::Box::containsPoint(const tf2::Vector3 &p, bool verbose) const 
 {
   /*  if(verbose)
-      fprintf(stderr,"Actual: %f,%f,%f \nDesired: %f,%f,%f \nTolerance:%f,%f,%f\n",p.x(),p.y(),p.z(),m_center.x(),m_center.y(),m_center.z(),m_length2,m_width2,m_height2);*/
-    tf::Vector3 v = p - m_center;
+      fprintf2(stderr,"Actual: %f,%f,%f \nDesired: %f,%f,%f \nTolerance:%f,%f,%f\n",p.x(),p.y(),p.z(),m_center.x(),m_center.y(),m_center.z(),m_length2,m_width2,m_height2);*/
+    tf2::Vector3 v = p - m_center;
     double pL = v.dot(m_normalL);
     
     if (fabs(pL) > m_length2)
@@ -423,12 +423,12 @@ void bodies::Box::updateInternalData(void)
     m_radius2 = m_length2 * m_length2 + m_width2 * m_width2 + m_height2 * m_height2;
     m_radiusB = sqrt(m_radius2);
 
-    const tf::Matrix3x3& basis = m_pose.getBasis();
+    const tf2::Matrix3x3& basis = m_pose.getBasis();
     m_normalL = basis.getColumn(0);
     m_normalW = basis.getColumn(1);
     m_normalH = basis.getColumn(2);
 
-    const tf::Vector3 tmp(m_normalL * m_length2 + m_normalW * m_width2 + m_normalH * m_height2);
+    const tf2::Vector3 tmp(m_normalL * m_length2 + m_normalW * m_width2 + m_normalH * m_height2);
     m_corner1 = m_center - tmp;
     m_corner2 = m_center + tmp;
 }
@@ -444,7 +444,7 @@ void bodies::Box::computeBoundingSphere(BoundingSphere &sphere) const
     sphere.radius = m_radiusB;
 }
 
-bool bodies::Box::intersectsRay(const tf::Vector3& origin, const tf::Vector3& dir, std::vector<tf::Vector3> *intersections, unsigned int count) const
+bool bodies::Box::intersectsRay(const tf2::Vector3& origin, const tf2::Vector3& dir, std::vector<tf2::Vector3> *intersections, unsigned int count) const
 {  
     if (distanceSQR(m_center, origin, dir) > m_radius2) return false;
 
@@ -453,7 +453,7 @@ bool bodies::Box::intersectsRay(const tf::Vector3& origin, const tf::Vector3& di
     
     for (int i = 0; i < 3; i++)
     {
-	const tf::Vector3 &vN = i == 0 ? m_normalL : (i == 1 ? m_normalW : m_normalH);
+	const tf2::Vector3 &vN = i == 0 ? m_normalL : (i == 1 ? m_normalW : m_normalH);
 	double dp = vN.dot(dir);
 	
 	if (fabs(dp) > ZERO)
@@ -521,11 +521,11 @@ bool bodies::Box::intersectsRay(const tf::Vector3& origin, const tf::Vector3& di
     return true;
 }
 /*
-bool bodies::Mesh::containsPoint(const tf::Vector3 &p) const
+bool bodies::Mesh::containsPoint(const tf2::Vector3 &p) const
 {
     // compute all intersections
-    std::vector<tf::Vector3> pts;
-    intersectsRay(p, tf::Vector3(0, 0, 1), &pts);
+    std::vector<tf2::Vector3> pts;
+    intersectsRay(p, tf2::Vector3(0, 0, 1), &pts);
     
     // if we have an odd number of intersections, we are inside
     return pts.size() % 2 == 1;
@@ -545,7 +545,7 @@ namespace bodies
 		found_intersections = false;
 	    }
 	    
-	    virtual void processTriangle(tf::Vector3 *triangle, int partId, int triangleIndex)
+	    virtual void processTriangle(tf2::Vector3 *triangle, int partId, int triangleIndex)
 	    {
 		found_intersections = true;
 		if (keep_triangles_)
@@ -564,7 +564,7 @@ namespace bodies
     }
 }
 
-bool bodies::Mesh::intersectsRay(const tf::Vector3& origin, const tf::Vector3& dir, std::vector<tf::Vector3> *intersections, unsigned int count) const
+bool bodies::Mesh::intersectsRay(const tf2::Vector3& origin, const tf2::Vector3& dir, std::vector<tf2::Vector3> *intersections, unsigned int count) const
 {
     if (m_btMeshShape)
     {
@@ -572,15 +572,15 @@ bool bodies::Mesh::intersectsRay(const tf::Vector3& origin, const tf::Vector3& d
 	if (distanceSQR(m_center, origin, dir) > m_radiusBSqr) return false;
 	
 	// transform the ray into the coordinate frame of the mesh
-	tf::Vector3 orig(m_iPose * origin);
-	tf::Vector3 dr(m_iPose.getBasis() * dir);
+	tf2::Vector3 orig(m_iPose * origin);
+	tf2::Vector3 dr(m_iPose.getBasis() * dir);
 	
 	// find intersection with AABB
-	tfScalar maxT = 0.0;
+	tf2Scalar maxT = 0.0;
 	
 	if (fabs(dr.x()) > ZERO)
 	{
-	    tfScalar t = (m_aabbMax.x() - orig.x()) / dr.x();
+	    tf2Scalar t = (m_aabbMax.x() - orig.x()) / dr.x();
 	    if (t < 0.0)
 		t = (m_aabbMin.x() - orig.x()) / dr.x();
 	    if (t > maxT)
@@ -588,7 +588,7 @@ bool bodies::Mesh::intersectsRay(const tf::Vector3& origin, const tf::Vector3& d
 	}
 	if (fabs(dr.y()) > ZERO)
 	{
-	    tfScalar t = (m_aabbMax.y() - orig.y()) / dr.y();
+	    tf2Scalar t = (m_aabbMax.y() - orig.y()) / dr.y();
 	    if (t < 0.0)
 		t = (m_aabbMin.y() - orig.y()) / dr.y();
 	    if (t > maxT)
@@ -596,7 +596,7 @@ bool bodies::Mesh::intersectsRay(const tf::Vector3& origin, const tf::Vector3& d
 	}
 	if (fabs(dr.z()) > ZERO)
 	{
-	    tfScalar t = (m_aabbMax.z() - orig.z()) / dr.z();
+	    tf2Scalar t = (m_aabbMax.z() - orig.z()) / dr.z();
 	    if (t < 0.0)
 		t = (m_aabbMin.z() - orig.z()) / dr.z();
 	    if (t > maxT)
@@ -614,9 +614,9 @@ bool bodies::Mesh::intersectsRay(const tf::Vector3& origin, const tf::Vector3& d
 		std::vector<detail::intersc> intpt;
 		for (unsigned int i = 0 ; i < cb.triangles.size() ; ++i)
 		{
-		    tf::Vector3 normal;
+		    tf2::Vector3 normal;
 		    cb.triangles[i].calcNormal(normal);
-		    tfScalar dv = normal.dot(dr);
+		    tf2Scalar dv = normal.dot(dr);
 		    if (fabs(dv) > 1e-3)
 		    {
 			double t = (normal.dot(cb.triangles[i].getVertexPtr(0)) - normal.dot(orig)) / dv;			
@@ -655,9 +655,9 @@ void bodies::Mesh::useDimensions(const shapes::Shape *shape)
 	const unsigned int v1 = 3 * mesh->triangles[i3];
 	const unsigned int v2 = 3 * mesh->triangles[i3 + 1];
 	const unsigned int v3 = 3 * mesh->triangles[i3 + 2];
-	m_btMesh->addTriangle(tf::Vector3(mesh->vertices[v1], mesh->vertices[v1 + 1], mesh->vertices[v1 + 2]),
-			      tf::Vector3(mesh->vertices[v2], mesh->vertices[v2 + 1], mesh->vertices[v2 + 2]),
-			      tf::Vector3(mesh->vertices[v3], mesh->vertices[v3 + 1], mesh->vertices[v3 + 2]), true);
+	m_btMesh->addTriangle(tf2::Vector3(mesh->vertices[v1], mesh->vertices[v1 + 1], mesh->vertices[v1 + 2]),
+			      tf2::Vector3(mesh->vertices[v2], mesh->vertices[v2 + 1], mesh->vertices[v2 + 2]),
+			      tf2::Vector3(mesh->vertices[v3], mesh->vertices[v3 + 1], mesh->vertices[v3 + 2]), true);
     }
     
     m_btMeshShape = new btBvhTriangleMeshShape(m_btMesh, true);
@@ -667,16 +667,16 @@ void bodies::Mesh::updateInternalData(void)
 {
     if (m_btMeshShape)
     {
-	m_btMeshShape->setLocalScaling(tf::Vector3(m_scale, m_scale, m_scale));
+	m_btMeshShape->setLocalScaling(tf2::Vector3(m_scale, m_scale, m_scale));
 	m_btMeshShape->setMargin(m_padding);
     }
     m_iPose = m_pose.inverse();
     
-    tf::Transform id;
+    tf2::Transform id;
     id.setIdentity();
     m_btMeshShape->getAabb(id, m_aabbMin, m_aabbMax);
 
-    tf::Vector3 d = (m_aabbMax - m_aabbMin) / 2.0;
+    tf2::Vector3 d = (m_aabbMax - m_aabbMin) / 2.0;
 
     m_center = m_pose.getOrigin() + d;
     m_radiusBSqr = d.length2();
@@ -690,7 +690,7 @@ double bodies::Mesh::computeVolume(void) const
     if (m_btMeshShape)
     {
 	// approximation; volume of AABB at identity transform
-	tf::Vector3 d = m_aabbMax - m_aabbMin;
+	tf2::Vector3 d = m_aabbMax - m_aabbMin;
 	return d.x() * d.y() * d.z();
     }
     else
@@ -705,11 +705,11 @@ void bodies::Mesh::computeBoundingSphere(BoundingSphere &sphere) const
 
 */
 
-bool bodies::ConvexMesh::containsPoint(const tf::Vector3 &p, bool verbose) const
+bool bodies::ConvexMesh::containsPoint(const tf2::Vector3 &p, bool verbose) const
 {
     if (m_boundingBox.containsPoint(p))
     {
-	tf::Vector3 ip(m_iPose * p);
+	tf2::Vector3 ip(m_iPose * p);
 	ip = m_meshCenter + (ip - m_meshCenter) * m_scale;
 	return isPointInsidePlanes(ip);
     }
@@ -753,7 +753,7 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
     m_triangles.clear();
     m_vertices.clear();
     m_meshRadiusB = 0.0;
-    m_meshCenter.setValue(tfScalar(0), tfScalar(0), tfScalar(0));
+    m_meshCenter.setValue(tf2Scalar(0), tf2Scalar(0), tf2Scalar(0));
 
     btVector3 *vertices = new btVector3[mesh->vertexCount];
     for(unsigned int i = 0; i < mesh->vertexCount ; ++i)
@@ -771,11 +771,11 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
 	//	std::cout << "Convex hull has " << hr.m_OutputVertices.size() << " vertices (down from " << mesh->vertexCount << "), " << hr.mNumFaces << " faces" << std::endl;
 
 	m_vertices.reserve(hr.m_OutputVertices.size());
-	tf::Vector3 sum(0, 0, 0);	
+	tf2::Vector3 sum(0, 0, 0);	
 	
 	for (int j = 0 ; j < hr.m_OutputVertices.size() ; ++j)
 	{
-            tf::Vector3 vector3_tmp(tf::Vector3(hr.m_OutputVertices[j][0],hr.m_OutputVertices[j][1],hr.m_OutputVertices[j][2]));
+            tf2::Vector3 vector3_tmp(tf2::Vector3(hr.m_OutputVertices[j][0],hr.m_OutputVertices[j][1],hr.m_OutputVertices[j][2]));
 	    m_vertices.push_back(vector3_tmp);
 	    sum = sum + vector3_tmp;
 	}
@@ -792,27 +792,27 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
 	m_triangles.reserve(hr.m_Indices.size());
 	for (unsigned int j = 0 ; j < hr.mNumFaces ; ++j)
 	{
-	    const tf::Vector3 p1(hr.m_OutputVertices[hr.m_Indices[j * 3    ]][0],hr.m_OutputVertices[hr.m_Indices[j * 3    ]][1],hr.m_OutputVertices[hr.m_Indices[j * 3    ]][2]);
-	    const tf::Vector3 p2(hr.m_OutputVertices[hr.m_Indices[j * 3 + 1]][0],hr.m_OutputVertices[hr.m_Indices[j * 3 + 1]][1],hr.m_OutputVertices[hr.m_Indices[j * 3 + 1]][2]);
-	    const tf::Vector3 p3(hr.m_OutputVertices[hr.m_Indices[j * 3 + 2]][0],hr.m_OutputVertices[hr.m_Indices[j * 3 + 2]][1],hr.m_OutputVertices[hr.m_Indices[j * 3 + 2]][2]);
+	    const tf2::Vector3 p1(hr.m_OutputVertices[hr.m_Indices[j * 3    ]][0],hr.m_OutputVertices[hr.m_Indices[j * 3    ]][1],hr.m_OutputVertices[hr.m_Indices[j * 3    ]][2]);
+	    const tf2::Vector3 p2(hr.m_OutputVertices[hr.m_Indices[j * 3 + 1]][0],hr.m_OutputVertices[hr.m_Indices[j * 3 + 1]][1],hr.m_OutputVertices[hr.m_Indices[j * 3 + 1]][2]);
+	    const tf2::Vector3 p3(hr.m_OutputVertices[hr.m_Indices[j * 3 + 2]][0],hr.m_OutputVertices[hr.m_Indices[j * 3 + 2]][1],hr.m_OutputVertices[hr.m_Indices[j * 3 + 2]][2]);
 	    
-	    tf::Vector3 edge1 = (p2 - p1);
-	    tf::Vector3 edge2 = (p3 - p1);
+	    tf2::Vector3 edge1 = (p2 - p1);
+	    tf2::Vector3 edge2 = (p3 - p1);
 	    
 	    edge1.normalize();
 	    edge2.normalize();
 
-	    tf::Vector3 planeNormal = edge1.cross(edge2);
+	    tf2::Vector3 planeNormal = edge1.cross(edge2);
 	    
-	    if (planeNormal.length2() > tfScalar(1e-6))
+	    if (planeNormal.length2() > tf2Scalar(1e-6))
 	    {
 		planeNormal.normalize();
-		tf::tfVector4 planeEquation(planeNormal.getX(), planeNormal.getY(), planeNormal.getZ(), -planeNormal.dot(p1));
+		tf2::tf2Vector4 planeEquation(planeNormal.getX(), planeNormal.getY(), planeNormal.getZ(), -planeNormal.dot(p1));
 
 		unsigned int behindPlane = countVerticesBehindPlane(planeEquation);
 		if (behindPlane > 0)
 		{
-		    tf::tfVector4 planeEquation2(-planeEquation.getX(), -planeEquation.getY(), -planeEquation.getZ(), -planeEquation.getW());
+		    tf2::tf2Vector4 planeEquation2(-planeEquation.getX(), -planeEquation.getY(), -planeEquation.getZ(), -planeEquation.getW());
 		    unsigned int behindPlane2 = countVerticesBehindPlane(planeEquation2);
 		    if (behindPlane2 < behindPlane)
 		    {
@@ -842,7 +842,7 @@ void bodies::ConvexMesh::useDimensions(const shapes::Shape *shape)
 
 void bodies::ConvexMesh::updateInternalData(void) 
 {
-    tf::Transform pose = m_pose;
+    tf2::Transform pose = m_pose;
     pose.setOrigin(m_pose * m_boxOffset);
     m_boundingBox.setPose(pose);
     m_boundingBox.setPadding(m_padding);
@@ -856,8 +856,8 @@ void bodies::ConvexMesh::updateInternalData(void)
     m_scaledVertices.resize(m_vertices.size());
     for (unsigned int i = 0 ; i < m_vertices.size() ; ++i)
     {
-	tf::Vector3 v(m_vertices[i] - m_meshCenter);
-	tfScalar l = v.length();
+	tf2::Vector3 v(m_vertices[i] - m_meshCenter);
+	tf2Scalar l = v.length();
 	m_scaledVertices[i] = m_meshCenter + v * (m_scale + (l > ZERO ? m_padding / l : 0.0));
     }
 }
@@ -868,27 +868,27 @@ void bodies::ConvexMesh::computeBoundingSphere(BoundingSphere &sphere) const
     sphere.radius = m_radiusB;
 }
 
-bool bodies::ConvexMesh::isPointInsidePlanes(const tf::Vector3& point) const
+bool bodies::ConvexMesh::isPointInsidePlanes(const tf2::Vector3& point) const
 {
     unsigned int numplanes = m_planes.size();
     for (unsigned int i = 0 ; i < numplanes ; ++i)
     {
-	const tf::tfVector4& plane = m_planes[i];
-	tfScalar dist = plane.dot(point) + plane.getW() - m_padding - tfScalar(1e-6);
-	if (dist > tfScalar(0))
+	const tf2::tf2Vector4& plane = m_planes[i];
+	tf2Scalar dist = plane.dot(point) + plane.getW() - m_padding - tf2Scalar(1e-6);
+	if (dist > tf2Scalar(0))
 	    return false;
     }
     return true;
 }
 
-unsigned int bodies::ConvexMesh::countVerticesBehindPlane(const tf::tfVector4& planeNormal) const
+unsigned int bodies::ConvexMesh::countVerticesBehindPlane(const tf2::tf2Vector4& planeNormal) const
 {
     unsigned int numvertices = m_vertices.size();
     unsigned int result = 0;
     for (unsigned int i = 0 ; i < numvertices ; ++i)
     {
-	tfScalar dist = planeNormal.dot(m_vertices[i]) + planeNormal.getW() - tfScalar(1e-6);
-	if (dist > tfScalar(0))
+	tf2Scalar dist = planeNormal.dot(m_vertices[i]) + planeNormal.getW() - tf2Scalar(1e-6);
+	if (dist > tf2Scalar(0))
 	    result++;
     }
     return result;
@@ -899,22 +899,22 @@ double bodies::ConvexMesh::computeVolume(void) const
     double volume = 0.0;
     for (unsigned int i = 0 ; i < m_triangles.size() / 3 ; ++i)
     {
-	const tf::Vector3 &v1 = m_vertices[m_triangles[3*i + 0]];
-        const tf::Vector3 &v2 = m_vertices[m_triangles[3*i + 1]];
-	const tf::Vector3 &v3 = m_vertices[m_triangles[3*i + 2]];
+	const tf2::Vector3 &v1 = m_vertices[m_triangles[3*i + 0]];
+        const tf2::Vector3 &v2 = m_vertices[m_triangles[3*i + 1]];
+	const tf2::Vector3 &v3 = m_vertices[m_triangles[3*i + 2]];
 	volume += v1.x()*v2.y()*v3.z() + v2.x()*v3.y()*v1.z() + v3.x()*v1.y()*v2.z() - v1.x()*v3.y()*v2.z() - v2.x()*v1.y()*v3.z() - v3.x()*v2.y()*v1.z();
     }
     return fabs(volume)/6.0;
 }
 
-bool bodies::ConvexMesh::intersectsRay(const tf::Vector3& origin, const tf::Vector3& dir, std::vector<tf::Vector3> *intersections, unsigned int count) const
+bool bodies::ConvexMesh::intersectsRay(const tf2::Vector3& origin, const tf2::Vector3& dir, std::vector<tf2::Vector3> *intersections, unsigned int count) const
 {
     if (distanceSQR(m_center, origin, dir) > m_radiusBSqr) return false;
     if (!m_boundingBox.intersectsRay(origin, dir)) return false;
     
     // transform the ray into the coordinate frame of the mesh
-    tf::Vector3 orig(m_iPose * origin);
-    tf::Vector3 dr(m_iPose.getBasis() * dir);
+    tf2::Vector3 orig(m_iPose * origin);
+    tf2::Vector3 dr(m_iPose.getBasis() * dir);
     
     std::vector<detail::intersc> ipts;
     
@@ -924,7 +924,7 @@ bool bodies::ConvexMesh::intersectsRay(const tf::Vector3& origin, const tf::Vect
     const unsigned int nt = m_triangles.size() / 3;
     for (unsigned int i = 0 ; i < nt ; ++i)
     {
-	tfScalar tmp = m_planes[i].dot(dr);
+	tf2Scalar tmp = m_planes[i].dot(dr);
 	if (fabs(tmp) > ZERO)
 	{
 	    double t = -(m_planes[i].dot(orig) + m_planes[i].getW()) / tmp;
@@ -935,26 +935,26 @@ bool bodies::ConvexMesh::intersectsRay(const tf::Vector3& origin, const tf::Vect
 		const int v2 = m_triangles[i3 + 1];
 		const int v3 = m_triangles[i3 + 2];
 		
-		const tf::Vector3 &a = m_scaledVertices[v1];
-		const tf::Vector3 &b = m_scaledVertices[v2];
-		const tf::Vector3 &c = m_scaledVertices[v3];
+		const tf2::Vector3 &a = m_scaledVertices[v1];
+		const tf2::Vector3 &b = m_scaledVertices[v2];
+		const tf2::Vector3 &c = m_scaledVertices[v3];
 		
-		tf::Vector3 cb(c - b);
-		tf::Vector3 ab(a - b);
+		tf2::Vector3 cb(c - b);
+		tf2::Vector3 ab(a - b);
 		
 		// intersection of the plane defined by the triangle and the ray
-		tf::Vector3 P(orig + dr * t);
+		tf2::Vector3 P(orig + dr * t);
 		
 		// check if it is inside the triangle
-		tf::Vector3 pb(P - b);
-		tf::Vector3 c1(cb.cross(pb));
-		tf::Vector3 c2(cb.cross(ab));
+		tf2::Vector3 pb(P - b);
+		tf2::Vector3 c1(cb.cross(pb));
+		tf2::Vector3 c2(cb.cross(ab));
 		if (c1.dot(c2) < 0.0)
 		    continue;
 		
-		tf::Vector3 ca(c - a);
-		tf::Vector3 pa(P - a);
-		tf::Vector3 ba(-ab);
+		tf2::Vector3 ca(c - a);
+		tf2::Vector3 pa(P - a);
+		tf2::Vector3 ba(-ab);
 		
 		c1 = ca.cross(pa);
 		c2 = ca.cross(ba);
