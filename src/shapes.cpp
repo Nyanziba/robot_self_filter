@@ -34,7 +34,7 @@
 
 /** \author Ioan Sucan */
 
-#include "robot_self_filter/shapes.h"
+#include "robot_self_filter_oedo/shapes.h"
 namespace robot_self_filter
 {
 

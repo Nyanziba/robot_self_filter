@@ -32,16 +32,18 @@
 
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <sensor_msgs/msgs/PointCloud2.hpp>
-#include <robot_self_filter/bodies.h>
+#include <robot_self_filter_oedo/bodies.h>
+#include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
-#include <boost/bind.hpp>
-#include <boost/filesystem.hpp>
+#include <functional>
+#include <filesystem>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include <urdf/model.h>
-#include <resource_retriever/retriever.h>
+#include <resource_retriever/retriever.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 namespace robot_self_filter
 {
@@ -69,25 +71,28 @@ struct LinkInfo
 
     static shapes::Shape* constructShape(const urdf::Geometry *geom)
     {
-	ROS_ASSERT(geom);
+      if (!geom) {
+        RCLCPP_ERROR(rclcpp::get_logger("robot_self_filter"), "Null geometry pointer");
+        return nullptr;
+      }
 	
-	shapes::Shape *result = NULL;
-	switch (geom->type)
-	{
-	case urdf::Geometry::SPHERE:
+      shapes::Shape *result = NULL;
+      switch (geom->type)
+      {
+      case urdf::Geometry::SPHERE:
 	    result = new shapes::Sphere(dynamic_cast<const urdf::Sphere*>(geom)->radius);
 	    break;	
-	case urdf::Geometry::BOX:
+      case urdf::Geometry::BOX:
 	    {
 		urdf::Vector3 dim = dynamic_cast<const urdf::Box*>(geom)->dim;
 		result = new shapes::Box(dim.x, dim.y, dim.z);
 	    }
 	    break;
-	case urdf::Geometry::CYLINDER:
+      case urdf::Geometry::CYLINDER:
 	    result = new shapes::Cylinder(dynamic_cast<const urdf::Cylinder*>(geom)->radius,
 					  dynamic_cast<const urdf::Cylinder*>(geom)->length);
 	    break;
-	case urdf::Geometry::MESH:
+      case urdf::Geometry::MESH:
 	    {
 		const urdf::Mesh *mesh = dynamic_cast<const urdf::Mesh*>(geom);
 		if (!mesh->filename.empty())
@@ -102,17 +107,17 @@ struct LinkInfo
 		    }
 		    catch (resource_retriever::Exception& e)
 		    {
-			ROS_ERROR("%s", e.what());
+			RCLCPP_ERROR(rclcpp::get_logger("robot_self_filter"), "%s", e.what());
 			ok = false;
 		    }
 		    
 		    if (ok)
 		    {
 			if (res.size == 0)
-			    ROS_WARN("Retrieved empty mesh for resource '%s'", mesh->filename.c_str());
+			    RCLCPP_WARN(rclcpp::get_logger("robot_self_filter"), "Retrieved empty mesh for resource '%s'", mesh->filename.c_str());
 			else
 			{
-			    boost::filesystem::path model_path(mesh->filename);
+			    std::filesystem::path model_path(mesh->filename);
 			    std::string ext = model_path.extension().string();
 			    if (ext == ".dae" || ext == ".DAE") {
 			      result = shapes::createMeshFromBinaryDAE(mesh->filename.c_str());
@@ -121,21 +126,21 @@ struct LinkInfo
 			      result = shapes::createMeshFromBinaryStlData(reinterpret_cast<char*>(res.data.get()), res.size);
 			    }
 			    if (result == NULL)
-				ROS_ERROR("Failed to load mesh '%s'", mesh->filename.c_str());
+				RCLCPP_ERROR(rclcpp::get_logger("robot_self_filter"), "Failed to load mesh '%s'", mesh->filename.c_str());
 			}
 		    }
 		}
 		else
-		    ROS_WARN("Empty mesh filename");
+		    RCLCPP_WARN(rclcpp::get_logger("robot_self_filter"), "Empty mesh filename");
 	    }
 	    
 	    break;
-	default:
-	    ROS_ERROR("Unknown geometry type: %d", (int)geom->type);
+      default:
+	    RCLCPP_ERROR(rclcpp::get_logger("robot_self_filter"), "Unknown geometry type: %d", (int)geom->type);
 	    break;
-	}
+      }
 	
-	return result;
+      return result;
     }
 
     /** \brief Computing a mask for a pointcloud that states which points are inside the robot
@@ -172,7 +177,8 @@ struct LinkInfo
 	typedef pcl::PointCloud<PointT> PointCloud;
 
 	/** \brief Construct the filter */
-	SelfMask(tf2::TransformListener &tf2, const std::vector<LinkInfo> &links) : tf2_(tf2)
+	SelfMask(std::shared_ptr<tf2_ros::Buffer> tf_buffer, const std::vector<LinkInfo> &links, rclcpp::Node::SharedPtr node)
+	  : tf_buffer_(tf_buffer), node_(node)
 	{
 	    configure(links);
 	}
@@ -194,11 +200,10 @@ struct LinkInfo
             std::fill(mask.begin(), mask.end(), (int)OUTSIDE);
           else
           {
-            std_msgs::Header header = pcl_conversions::fromPCL(data_in.header);
+            std_msgs::msg::Header header = pcl_conversions::fromPCL(data_in.header);
             assumeFrame(header);
             maskAuxContainment(data_in, mask);
           }
-
         }
 
 	/** \brief Compute the intersection mask for a given
@@ -211,7 +216,7 @@ struct LinkInfo
 	    the first intersection point on each body.
 	 */
 	void maskIntersection(const PointCloud& data_in, const std::string &sensor_frame, const double min_sensor_dist,
-			      std::vector<int> &mask, const boost::function<void(const tf2::Vector3&)> &intersectionCallback = NULL)
+			      std::vector<int> &mask, const std::function<void(const tf2::Vector3&)> &intersectionCallback = nullptr)
         {
           mask.resize(data_in.points.size());
           if (bodies_.empty()) {
@@ -219,14 +224,13 @@ struct LinkInfo
           }
           else
           {
-            std_msgs::Header header = pcl_conversions::fromPCL(data_in.header);
+            std_msgs::msg::Header header = pcl_conversions::fromPCL(data_in.header);
             assumeFrame(header, sensor_frame, min_sensor_dist);
             if (sensor_frame.empty())
               maskAuxContainment(data_in, mask);
             else
               maskAuxIntersection(data_in, mask, intersectionCallback);
           }
-          
         }
         
         
@@ -237,60 +241,62 @@ struct LinkInfo
 	    the robot. The origin of the sensor is specified as well.
 	 */
 	void maskIntersection(const PointCloud& data_in, const tf2::Vector3 &sensor_pos, const double min_sensor_dist,
-			      std::vector<int> &mask, const boost::function<void(const tf2::Vector3&)> &intersectionCallback = NULL)
+			      std::vector<int> &mask, const std::function<void(const tf2::Vector3&)> &intersectionCallback = nullptr)
         {
           mask.resize(data_in.points.size());
           if (bodies_.empty())
             std::fill(mask.begin(), mask.end(), (int)OUTSIDE);
           else
           {
-            std_msgs::Header header = pcl_conversions::fromPCL(data_in.header);
+            std_msgs::msg::Header header = pcl_conversions::fromPCL(data_in.header);
             assumeFrame(header, sensor_pos, min_sensor_dist);
             maskAuxIntersection(data_in, mask, intersectionCallback);
           }
-
         }
 	
 	/** \brief Assume subsequent calls to getMaskX() will be in the frame passed to this function.
 	 *   The frame in which the sensor is located is optional */
-	void assumeFrame(const std_msgs::Header& header)
+	void assumeFrame(const std_msgs::msg::Header& header)
         {
-              const unsigned int bs = bodies_.size();
+          const unsigned int bs = bodies_.size();
     
-    // place the links in the assumed frame 
-    for (unsigned int i = 0 ; i < bs ; ++i)
-    {
-      std::string err;
-      if(!tf2_.waitf2orTransform(header.frame_id, bodies_[i].name, header.stamp, ros::Duration(.1), ros::Duration(.01), &err)) {
-        ROS_ERROR("Waitf2orTransform timed out from %s to %s after 100ms.  Error string: %s", bodies_[i].name.c_str(), header.frame_id.c_str(), err.c_str());
-        
-      } 
-      
-      // find the transform between the link's frame and the pointcloud frame
-      tf2::StampedTransform transf;
-      try
-      {
-        tf2_.lookupTransform(header.frame_id, bodies_[i].name, header.stamp, transf);
-      }
-      catch(tf2::TransformException& ex)
-      {
-        transf.setIdentity();
-        ROS_ERROR("Unable to lookup transform from %s to %s. Exception: %s", bodies_[i].name.c_str(), header.frame_id.c_str(), ex.what());	
-      }
-      
-      // set it for each body; we also include the offset specified in URDF
-      bodies_[i].body->setPose(transf * bodies_[i].constTransf);
-      bodies_[i].unscaledBody->setPose(transf * bodies_[i].constTransf);
-    }
-    
-    computeBoundingSpheres();
-
+          // place the links in the assumed frame 
+          for (unsigned int i = 0 ; i < bs ; ++i)
+          {
+            std::string error_string;
+            if(!tf_buffer_->canTransform(header.frame_id, bodies_[i].name, tf2::timeFromSec(rclcpp::Time(header.stamp).seconds()), 
+                                       tf2::durationFromSec(0.1), &error_string)) {
+              RCLCPP_ERROR(node_->get_logger(), "Wait for transform failed from %s to %s after 100ms. Error string: %s", 
+                          bodies_[i].name.c_str(), header.frame_id.c_str(), error_string.c_str());
+            }
+            
+            // find the transform between the link's frame and the pointcloud frame
+            geometry_msgs::msg::TransformStamped transform_stamped;
+            try
+            {
+              transform_stamped = tf_buffer_->lookupTransform(header.frame_id, bodies_[i].name, 
+                                                           tf2::timeFromSec(rclcpp::Time(header.stamp).seconds()));
+              tf2::Transform transf;
+              tf2::fromMsg(transform_stamped.transform, transf);
+              
+              // set it for each body; we also include the offset specified in URDF
+              bodies_[i].body->setPose(transf * bodies_[i].constTransf);
+              bodies_[i].unscaledBody->setPose(transf * bodies_[i].constTransf);
+            }
+            catch(tf2::TransformException& ex)
+            {
+              RCLCPP_ERROR(node_->get_logger(), "Unable to lookup transform from %s to %s. Exception: %s", 
+                          bodies_[i].name.c_str(), header.frame_id.c_str(), ex.what());
+            }
+          }
+          
+          computeBoundingSpheres();
         }
 	
 	
         /** \brief Assume subsequent calls to getMaskX() will be in the frame passed to this function.
 	 *  Also specify which possition to assume for the sensor (frame is not needed) */
-	void assumeFrame(const std_msgs::Header& header, const tf2::Vector3 &sensor_pos, const double min_sensor_dist)
+	void assumeFrame(const std_msgs::msg::Header& header, const tf2::Vector3 &sensor_pos, const double min_sensor_dist)
         {
           assumeFrame(header);
           sensor_pos_ = sensor_pos;
@@ -299,32 +305,37 @@ struct LinkInfo
 
 	/** \brief Assume subsequent calls to getMaskX() will be in the frame passed to this function.
 	 *   The frame in which the sensor is located is optional */
-	void assumeFrame(const std_msgs::Header& header, const std::string &sensor_frame, const double min_sensor_dist)
+	void assumeFrame(const std_msgs::msg::Header& header, const std::string &sensor_frame, const double min_sensor_dist)
         {
           assumeFrame(header);
 
-          std::string err;
-          if(!tf2_.waitf2orTransform(header.frame_id, sensor_frame, header.stamp, ros::Duration(.1), ros::Duration(.01), &err)) {
-            ROS_ERROR("Waitf2orTransform timed out from %s to %s after 100ms.  Error string: %s", sensor_frame.c_str(), header.frame_id.c_str(), err.c_str());
+          std::string error_string;
+          if(!tf_buffer_->canTransform(header.frame_id, sensor_frame, tf2::timeFromSec(rclcpp::Time(header.stamp).seconds()), 
+                                     tf2::durationFromSec(0.1), &error_string)) {
+            RCLCPP_ERROR(node_->get_logger(), "Wait for transform failed from %s to %s after 100ms. Error string: %s", 
+                        sensor_frame.c_str(), header.frame_id.c_str(), error_string.c_str());
             sensor_pos_.setValue(0, 0, 0);
           } 
 
-          //transform should be there
+          // transform should be there
           // compute the origin of the sensor in the frame of the cloud
           try
           {
-            tf2::StampedTransform transf;
-            tf2_.lookupTransform(header.frame_id, sensor_frame, header.stamp, transf);
+            geometry_msgs::msg::TransformStamped transform_stamped;
+            transform_stamped = tf_buffer_->lookupTransform(header.frame_id, sensor_frame, 
+                                                         tf2::timeFromSec(rclcpp::Time(header.stamp).seconds()));
+            tf2::Transform transf;
+            tf2::fromMsg(transform_stamped.transform, transf);
             sensor_pos_ = transf.getOrigin();
           }
           catch(tf2::TransformException& ex)
           {
             sensor_pos_.setValue(0, 0, 0);
-            ROS_ERROR("Unable to lookup transform from %s to %s.  Exception: %s", sensor_frame.c_str(), header.frame_id.c_str(), ex.what());
+            RCLCPP_ERROR(node_->get_logger(), "Unable to lookup transform from %s to %s. Exception: %s", 
+                        sensor_frame.c_str(), header.frame_id.c_str(), ex.what());
           }
   
           min_sensor_dist_ = min_sensor_dist;
-
         }
 	
         /** \brief Get the containment mask (INSIDE or OUTSIDE) value for an individual point. No
@@ -349,7 +360,7 @@ struct LinkInfo
 	/** \brief Get the intersection mask (INSIDE, OUTSIDE or
 	    SHADOW) value for an individual point. No setup is
 	    performed, assumeFrame() should be called before use */
-	int  getMaskIntersection(double x, double y, double z, const boost::function<void(const tf2::Vector3&)> &intersectionCallback = NULL) const
+	int  getMaskIntersection(double x, double y, double z, const std::function<void(const tf2::Vector3&)> &intersectionCallback = nullptr) const
         {
           return getMaskIntersection(tf2::Vector3(x, y, z), intersectionCallback);
         }
@@ -357,7 +368,7 @@ struct LinkInfo
 	/** \brief Get the intersection mask (INSIDE, OUTSIDE or
 	    SHADOW) value for an individual point. No setup is
 	    performed, assumeFrame() should be called before use */
-	int  getMaskIntersection(const tf2::Vector3 &pt, const boost::function<void(const tf2::Vector3&)> &intersectionCallback = NULL) const
+	int  getMaskIntersection(const tf2::Vector3 &pt, const std::function<void(const tf2::Vector3&)> &intersectionCallback = nullptr) const
         {
           const unsigned int bs = bodies_.size();
 
@@ -370,7 +381,6 @@ struct LinkInfo
     
           if (out == OUTSIDE)
           {
-
             // we check if the point is a shadow point 
             tf2::Vector3 dir(sensor_pos_ - pt);
             tf2Scalar  lng = dir.length();
@@ -385,8 +395,8 @@ struct LinkInfo
               {
                 // get the 1st intersection of ray pt->sensor
                 intersections.clear(); // intersectsRay doesn't clear the vector...
-		if (bodies_[j].body->intersectsRay(pt, dir, &intersections, 1))
-		{
+                if (bodies_[j].body->intersectsRay(pt, dir, &intersections, 1))
+                {
                   // is the intersection between point and sensor?
                   if (dir.dot(sensor_pos_ - intersections[0]) >= 0.0)
                   {
@@ -394,17 +404,16 @@ struct LinkInfo
                       intersectionCallback(intersections[0]);
                     out = SHADOW;
                   }
-		}
+                }
               }
 	    
               // if it is not a shadow point, we check if it is inside the scaled body
               for (unsigned int j = 0 ; out == OUTSIDE && j < bs ; ++j)
-		if (bodies_[j].body->containsPoint(pt))
+                if (bodies_[j].body->containsPoint(pt))
                   out = INSIDE;
             }
           }
           return out;
-
         }
 	
 	/** \brief Get the set of link names that have been instantiated for self filtering */
@@ -420,12 +429,12 @@ struct LinkInfo
 	void freeMemory(void)
         {
           for (unsigned int i = 0 ; i < bodies_.size() ; ++i)
-            {
-              if (bodies_[i].body)
-                delete bodies_[i].body;
-              if (bodies_[i].unscaledBody)
-                delete bodies_[i].unscaledBody;
-            }
+          {
+            if (bodies_[i].body)
+              delete bodies_[i].body;
+            if (bodies_[i].unscaledBody)
+              delete bodies_[i].unscaledBody;
+          }
           
           bodies_.clear();
         }
@@ -439,20 +448,19 @@ struct LinkInfo
           sensor_pos_.setValue(0, 0, 0);
     
           std::string content;
-          boost::shared_ptr<urdf::Model> urdfModel;
+          auto urdfModel = std::make_shared<urdf::Model>();
 
-          if (nh_.getParam("robot_description", content))
+          if (node_->get_parameter("robot_description", content))
           {
-            urdfModel = boost::shared_ptr<urdf::Model>(new urdf::Model());
             if (!urdfModel->initString(content))
             {
-              ROS_ERROR("Unable to parse URDF description!");
+              RCLCPP_ERROR(node_->get_logger(), "Unable to parse URDF description!");
               return false;
             }
           }
           else
           {
-            ROS_ERROR("Robot model not found! Did you remap 'robot_description'?");
+            RCLCPP_ERROR(node_->get_logger(), "Robot model not found! Did you remap 'robot_description'?");
             return false;
           }
           
@@ -472,7 +480,7 @@ struct LinkInfo
             
             if (!(link->collision && link->collision->geometry))
             {
-              ROS_WARN("No collision geometry specified for link '%s'", links[i].name.c_str());
+              RCLCPP_WARN(node_->get_logger(), "No collision geometry specified for link '%s'", links[i].name.c_str());
               continue;
             }
 	
@@ -480,7 +488,7 @@ struct LinkInfo
 	
             if (!shape)
             {
-              ROS_ERROR("Unable to construct collision shape for link '%s'", links[i].name.c_str());
+              RCLCPP_ERROR(node_->get_logger(), "Unable to construct collision shape for link '%s'", links[i].name.c_str());
               continue;
             }
 	
@@ -491,42 +499,42 @@ struct LinkInfo
             {
               sl.name = links[i].name;
               
-              // collision models may have an offset, in addition to what tf2 gives
+              // collision models may have an offset, in addition to what tf gives
               // so we keep it around
               sl.constTransf = urdfPose2tf2Transform(link->collision->origin);
               
               sl.body->setScale(links[i].scale);
               sl.body->setPadding(links[i].padding);
-              ROS_INFO_STREAM("Self see link name " <<  links[i].name << " padding " << links[i].padding);
+              RCLCPP_INFO(node_->get_logger(), "Self see link name %s padding %f", links[i].name.c_str(), links[i].padding);
               sl.volume = sl.body->computeVolume();
               sl.unscaledBody = bodies::createBodyFromShape(shape);
               bodies_.push_back(sl);
             }
             else
-              ROS_WARN("Unable to create point inclusion body for link '%s'", links[i].name.c_str());
+              RCLCPP_WARN(node_->get_logger(), "Unable to create point inclusion body for link '%s'", links[i].name.c_str());
 	
             delete shape;
           }
     
           if (missing.str().size() > 0)
-            ROS_WARN("Some links were included for self mask but they do not exist in the model:%s", missing.str().c_str());
+            RCLCPP_WARN(node_->get_logger(), "Some links were included for self mask but they do not exist in the model:%s", missing.str().c_str());
     
           if (bodies_.empty())
-            ROS_WARN("No robot links will be checked for self mask");
+            RCLCPP_ERROR(node_->get_logger(), "No robot links will be checked for self mask");
     
           // put larger volume bodies first -- higher chances of containing a point
+          RCLCPP_INFO(node_->get_logger(), "Sorting bodies by volume");
           std::sort(bodies_.begin(), bodies_.end(), SortBodies());
+          RCLCPP_INFO(node_->get_logger(), "Done sorting bodies by volume");
     
           bspheres_.resize(bodies_.size());
           bspheresRadius2_.resize(bodies_.size());
 
           for (unsigned int i = 0 ; i < bodies_.size() ; ++i)
-            ROS_DEBUG("Self mask includes link %s with volume %f", bodies_[i].name.c_str(), bodies_[i].volume);
+            
+            RCLCPP_INFO(node_->get_logger(), "Self mask includes link %s with volume %f", bodies_[i].name.c_str(), bodies_[i].volume);
     
-          //ROS_INFO("Self filter using %f padding and %f scaling", padd, scale);
-
           return true; 
-
         }
 	
 	/** \brief Compute bounding spheres for the checked robot links. */
@@ -560,7 +568,7 @@ struct LinkInfo
             int out = OUTSIDE;
             if (bound.center.distance2(pt) < radiusSquared)
               for (unsigned int j = 0 ; out == OUTSIDE && j < bs ; ++j)
-		if (bodies_[j].body->containsPoint(pt))
+                if (bodies_[j].body->containsPoint(pt))
                   out = INSIDE;
 	
             mask[i] = out;
@@ -568,7 +576,7 @@ struct LinkInfo
         }
 
 	/** \brief Perform the actual mask computation. */
-	void maskAuxIntersection(const PointCloud& data_in, std::vector<int> &mask, const boost::function<void(const tf2::Vector3&)> &callback)
+	void maskAuxIntersection(const PointCloud& data_in, std::vector<int> &mask, const std::function<void(const tf2::Vector3&)> &callback)
         {
           const unsigned int bs = bodies_.size();
           const unsigned int np = data_in.points.size();
@@ -577,8 +585,6 @@ struct LinkInfo
           bodies::BoundingSphere bound;
           bodies::mergeBoundingSpheres(bspheres_, bound);	  
           tf2Scalar radiusSquared = bound.radius * bound.radius;
-
-          //std::cout << "Testing " << np << " points\n";
 
           // we now decide which points we keep
           //#pragma omp parallel for schedule(dynamic) 
@@ -604,17 +610,17 @@ struct LinkInfo
             {
               // we check if the point is a shadow point 
               tf2::Vector3 dir(sensor_pos_ - pt);
-              tf2Scalar  lng = dir.length();
+              tf2Scalar lng = dir.length();
               if (lng < min_sensor_dist_) {
-		out = INSIDE;
+                out = INSIDE;
                 //std::cout << "Point " << i << " less than min sensor distance away\n";
               }
               else
               {		
-		dir /= lng;
+                dir /= lng;
 
-		std::vector<tf2::Vector3> intersections;
-		for (unsigned int j = 0 ; out == OUTSIDE && j < bs ; ++j) {
+                std::vector<tf2::Vector3> intersections;
+                for (unsigned int j = 0 ; out == OUTSIDE && j < bs ; ++j) {
                   // get the 1st intersection of ray pt->sensor
                   intersections.clear(); // intersectsRay doesn't clear the vector...
                   if (bodies_[j].body->intersectsRay(pt, dir, &intersections, 1))
@@ -628,9 +634,9 @@ struct LinkInfo
                       if(print) std::cout << "Point " << i << " shadowed by body part " << bodies_[j].name << std::endl;
                     }
                   }
-		}
-		// if it is not a shadow point, we check if it is inside the scaled body
-		if (out == OUTSIDE && bound.center.distance2(pt) < radiusSquared)
+                }
+                // if it is not a shadow point, we check if it is inside the scaled body
+                if (out == OUTSIDE && bound.center.distance2(pt) < radiusSquared)
                   for (unsigned int j = 0 ; out == OUTSIDE && j < bs ; ++j)
                     if (bodies_[j].body->containsPoint(pt)) {
                       if(print) std::cout << "Point " << i << " in scaled body part " << bodies_[j].name << std::endl;
@@ -642,18 +648,16 @@ struct LinkInfo
           }
         }
 	
-	tf2::TransformListener              &tf2_;
-	ros::NodeHandle                     nh_;
+        std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+        rclcpp::Node::SharedPtr node_;
 	
-	tf2::Vector3                           sensor_pos_;
-	double                              min_sensor_dist_;
+	tf2::Vector3 sensor_pos_;
+	double min_sensor_dist_;
 	
-	std::vector<SeeLink>                bodies_;
-	std::vector<double>                 bspheresRadius2_;
+	std::vector<SeeLink> bodies_;
+	std::vector<double> bspheresRadius2_;
 	std::vector<bodies::BoundingSphere> bspheres_;
-	
     };
-    
 }
 
 #endif

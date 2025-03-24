@@ -1,5 +1,6 @@
-<package>
-  <name>robot_self_filter</name>
+<?xml version="1.0"?>
+<package format="3">
+  <name>robot_self_filter_oedo</name>
   <version>0.1.32</version>
   <description>Filters the robot's body out of point clouds.</description>
   <maintainer email="dash@clearpathrobotics.com">Devon Ash</maintainer>
@@ -11,43 +12,26 @@
   <author>Eitan Marder-Eppstein</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <build_depend>cmake_modules</build_depend>
-  <build_depend>rclcpp</build_depend>
-  <build_depend>tf2</build_depend>
-  <build_depend>filters</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>urdf</build_depend>
-  <build_depend>tf2_bullet</build_depend>
-  <build_depend>resource_retriever</build_depend>
-  <build_depend>visualization_msgs</build_depend>
-  <build_depend>pcl_ros</build_depend>
-  <build_depend>assimp-dev</build_depend>
-  <build_depend>tinyxml</build_depend>
-  
-  <run_depend>rclcpp</run_depend>
-  <run_depend>tf2</run_depend>
-  <run_depend>filters</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>urdf</run_depend>
-  <run_depend>tf2_bullet</run_depend>
-  <run_depend>resource_retriever</run_depend>
-  <run_depend>visualization_msgs</run_depend>
-  <run_depend>pcl_ros</run_depend>
-  <run_depend>assimp</run_depend>
-  <run_depend>tinyxml</run_depend>
-  <!-- <test_depend>roscpp</test_depend> -->
-  <!-- <test_depend>tf</test_depend> -->
-  <!-- <test_depend>filters</test_depend> -->
-  <!-- <test_depend>sensor_msgs</test_depend> -->
-  <!-- <test_depend>urdf</test_depend> -->
-  <!-- <test_depend>bullet</test_depend> -->
-  <!-- <test_depend>resource_retriever</test_depend> -->
-  <!-- <test_depend>visualization_msgs</test_depend> -->
-  <!-- <test_depend>pcl</test_depend> -->
-  <!-- <test_depend>pcl_ros</test_depend> -->
+  <depend>rclcpp</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>filters</depend>
+  <depend>sensor_msgs</depend>
+  <depend>urdf</depend>
+  <depend>tf2_bullet</depend>
+  <depend>resource_retriever</depend>
+  <depend>visualization_msgs</depend>
+  <depend>pcl_ros</depend>
+  <depend>pcl_conversions</depend>
+  <depend>assimp</depend>
+  <depend>tinyxml</depend>
+  <depend>message_filters</depend>
+  <depend>std_msgs</depend>
+  <depend>rcutils</depend>
+  <depend>rcpputils</depend>
 
   <export>
-
+    <build_type>ament_cmake</build_type>
   </export>
 </package>

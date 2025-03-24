@@ -27,10 +27,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "robot_self_filter/self_mask.h"
+#include "robot_self_filter_oedo/self_mask.h"
 #include <urdf/model.h>
-#include <resource_retriever/retriever.h>
-#include <rclcpp/console.h>
+#include <resource_retriever/retriever.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <algorithm>
 #include <sstream>
 #include <climits>

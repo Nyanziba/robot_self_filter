@@ -1,0 +1,23 @@
+<!-- example.launch.xml -->
+
+<launch>
+
+  <!-- args that can be set from the command line or a default will be used -->
+  <arg name="background_r" default="0"/>
+  <arg name="background_g" default="255"/>
+  <arg name="background_b" default="0"/>
+  <arg name="chatter_ns" default="my/chatter/ns"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="use_robot_description" default="true"/>
+  <arg name="description_path" default="$(find-pkg-share sk75sr_bringup)/urdf/sk75sr_with_livox.urdf.xacro"/>
+  <arg name="robot_description" default="$(command 'xacro $(var description_path)')" />
+  <arg name="config_path" default="$(find-pkg-share robot_self_filter)/launch/oedo.yaml"/>
+
+
+  <node pkg="robot_self_filter" exec="self_filter" name="self_filter" output="screen" args="--ros-args --log-level INFO">
+    <param from="$(var config_path)"/>
+    <param name="use_sim_time" value="$(var use_sim_time)"/>
+    <param name="log-level" value="DEBUG"/>
+    <param name="robot_description" value="$(var robot_description)"/>  
+  </node>
+</launch>

@@ -36,24 +36,16 @@
 #include <cmath>
 #include <algorithm>
 #include <set>
-#include "robot_self_filter/shapes.h"
-#include <resource_retriever/retriever.h>
+#include "robot_self_filter_oedo/shapes.h"
+#include <resource_retriever/retriever.hpp>
 #include <rcpputils/asserts.hpp>
 #include <tinyxml.h>
-#if defined(ASSIMP_UNIFIED_HEADER_NAMES)
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <assimp/IOStream.hpp>
 #include <assimp/IOSystem.hpp>
-#else
-#include <assimp/assimp.hpp>
-#include <assimp/aiScene.h>
-#include <assimp/aiPostProcess.h>
-#include <assimp/IOStream.h>
-#include <assimp/IOSystem.h>
-#endif
-
+#include <rclcpp/rclcpp.hpp>  // ROS 2のロギングマクロのために追加
 
 // \author Ioan Sucan ;  based on stl_to_mesh 
 namespace robot_self_filter
@@ -87,7 +79,11 @@ namespace shapes
 	  return to_read;
 	}
 
-	size_t Write( const void* buffer, size_t size, size_t count) { ROS_BREAK(); return 0; }
+	size_t Write( const void* buffer, size_t size, size_t count) { 
+	  // ROS_BREAK()をthrow exceptionに置き換え
+	  throw std::runtime_error("Write operation not supported");
+	  return 0; 
+	}
 
 	aiReturn Seek( size_t offset, aiOrigin origin)
 	{
@@ -104,7 +100,8 @@ namespace shapes
 	    new_pos = res_.data.get() + res_.size - offset; // TODO is this right?
 	    break;
 	  default:
-	    ROS_BREAK();
+	    // ROS_BREAK()をthrow exceptionに置き換え
+	    throw std::runtime_error("Invalid origin in Seek operation");
 	  }
 
 	  if (new_pos < res_.data.get() || new_pos > res_.data.get() + res_.size)
@@ -214,7 +211,8 @@ namespace shapes
       }
       catch (resource_retriever::Exception& e)
       {
-	ROS_ERROR("%s", e.what());
+	// ROS_ERRORをRCLCPP_ERRORに置き換え
+	RCLCPP_ERROR(rclcpp::get_logger("robot_self_filter"), "%s", e.what());
 	return unit_scale;
       }
   
@@ -242,8 +240,9 @@ namespace shapes
 	    {
 	      // Failing to convert leaves unit_scale as the default.
 	      if(unitXml->QueryFloatAttribute("meter", &unit_scale) != 0)
-		ROS_WARN_STREAM("getMeshUnitRescale::Failed to convert unit element meter attribute to determine scaling. unit element: "
-				<< *unitXml);
+		// ROS_WARN_STREAMをRCLCPP_WARNに置き換え
+		RCLCPP_WARN(rclcpp::get_logger("robot_self_filter"), 
+			"getMeshUnitRescale::Failed to convert unit element meter attribute to determine scaling.");
 	    }
 	  }
 	}
@@ -251,9 +250,10 @@ namespace shapes
       return unit_scale;
     }
 
-    std::vector<tf::Vector3> getVerticesFromAssimpNode(const aiScene* scene, const aiNode* node, const float scale)
+    // tfをtf2に置き換え
+    std::vector<tf2::Vector3> getVerticesFromAssimpNode(const aiScene* scene, const aiNode* node, const float scale)
     {
-	std::vector<tf::Vector3> vertices;
+	std::vector<tf2::Vector3> vertices;
 	if (!node)
 	{
 	  return vertices;
@@ -284,14 +284,14 @@ namespace shapes
 	    aiVector3D p = input_mesh->mVertices[j];
 	    p *= transform;
 	    p *= scale;
-	    tf::Vector3 v(p.x, p.y, p.z);
+	    tf2::Vector3 v(p.x, p.y, p.z);
 	    vertices.push_back(v);
 	  }
 	}
 	
 	for (uint32_t i=0; i < node->mNumChildren; ++i)
 	{
-	  std::vector<tf::Vector3> sub_vertices = getVerticesFromAssimpNode(scene,node->mChildren[i], scale);
+	  std::vector<tf2::Vector3> sub_vertices = getVerticesFromAssimpNode(scene,node->mChildren[i], scale);
 	  // Add vertices
 	  for (size_t j = 0; j < sub_vertices.size(); j++) {
 	    vertices.push_back(sub_vertices[j]);
@@ -304,13 +304,14 @@ namespace shapes
     {
       if (!scene->HasMeshes())
       {
-	ROS_ERROR("No meshes found in file [%s]", name.c_str());
+	// ROS_ERRORをRCLCPP_ERRORに置き換え
+	RCLCPP_ERROR(rclcpp::get_logger("robot_self_filter"), "No meshes found in file [%s]", name.c_str());
 	return NULL;
       }
       
       float scale = getMeshUnitRescale(name);
 
-      std::vector<tf::Vector3> vertices = getVerticesFromAssimpNode(scene, scene->mRootNode, scale);
+      std::vector<tf2::Vector3> vertices = getVerticesFromAssimpNode(scene, scene->mRootNode, scale);
       
       return createMeshFromVertices(vertices);
     }
@@ -319,16 +320,17 @@ namespace shapes
     {
 	struct myVertex
 	{
-	    tf::Vector3    point;
+	    tf2::Vector3 point;  // tfをtf2に変更
 	    unsigned int index;
 	};
 	
+	// ltVertexValueでtf::Vector3をtf2::Vector3に変更
 	struct ltVertexValue
 	{
 	    bool operator()(const myVertex &p1, const myVertex &p2) const
 	    {
-		const tf::Vector3 &v1 = p1.point;
-		const tf::Vector3 &v2 = p2.point;
+		const tf2::Vector3 &v1 = p1.point;
+		const tf2::Vector3 &v2 = p2.point;
 		if (v1.getX() < v2.getX())
 		    return true;
 		if (v1.getX() > v2.getX())
@@ -352,7 +354,8 @@ namespace shapes
 	};
     }
     
-    shapes::Mesh* createMeshFromVertices(const std::vector<tf::Vector3> &vertices, const std::vector<unsigned int> &triangles)
+    // 実装関数のシグネチャをヘッダーに合わせてtf2::Vector3を使用
+    shapes::Mesh* createMeshFromVertices(const std::vector<tf2::Vector3> &vertices, const std::vector<unsigned int> &triangles)
     {
 	unsigned int nt = triangles.size() / 3;
 	shapes::Mesh *mesh = new shapes::Mesh(vertices.size(), nt);
@@ -368,9 +371,9 @@ namespace shapes
 	// compute normals 
 	for (unsigned int i = 0 ; i < nt ; ++i)
 	{
-	    tf::Vector3 s1 = vertices[triangles[i * 3    ]] - vertices[triangles[i * 3 + 1]];
-	    tf::Vector3 s2 = vertices[triangles[i * 3 + 1]] - vertices[triangles[i * 3 + 2]];
-	    tf::Vector3 normal = s1.cross(s2);
+	    tf2::Vector3 s1 = vertices[triangles[i * 3    ]] - vertices[triangles[i * 3 + 1]];
+	    tf2::Vector3 s2 = vertices[triangles[i * 3 + 1]] - vertices[triangles[i * 3 + 2]];
+	    tf2::Vector3 normal = s1.cross(s2);
 	    normal.normalize();
 	    mesh->normals[3 * i    ] = normal.getX();
 	    mesh->normals[3 * i + 1] = normal.getY();
@@ -379,7 +382,7 @@ namespace shapes
 	return mesh;
     }
     
-    shapes::Mesh* createMeshFromVertices(const std::vector<tf::Vector3> &source)
+    shapes::Mesh* createMeshFromVertices(const std::vector<tf2::Vector3> &source)
     {
 	if (source.size() < 3)
 	    return NULL;
@@ -448,9 +451,9 @@ namespace shapes
 	// compute normals 
 	for (unsigned int i = 0 ; i < nt ; ++i)
 	{
-	    tf::Vector3 s1 = vt[triangles[i * 3    ]].point - vt[triangles[i * 3 + 1]].point;
-	    tf::Vector3 s2 = vt[triangles[i * 3 + 1]].point - vt[triangles[i * 3 + 2]].point;
-	    tf::Vector3 normal = s1.cross(s2);
+	    tf2::Vector3 s1 = vt[triangles[i * 3    ]].point - vt[triangles[i * 3 + 1]].point;
+	    tf2::Vector3 s2 = vt[triangles[i * 3 + 1]].point - vt[triangles[i * 3 + 2]].point;
+	    tf2::Vector3 normal = s1.cross(s2);
 	    normal.normalize();
 	    mesh->normals[3 * i    ] = normal.getX();
 	    mesh->normals[3 * i + 1] = normal.getY();
@@ -471,7 +474,7 @@ namespace shapes
 	// make sure we have read enough data
 	if ((long)(50 * numTriangles + 84) <= size)
 	{
-	    std::vector<tf::Vector3> vertices;
+	    std::vector<tf2::Vector3> vertices;
 	    
 	    for (unsigned int currentTriangle = 0 ; currentTriangle < numTriangles ; ++currentTriangle)
 	    {
@@ -479,9 +482,9 @@ namespace shapes
 		pos += 12;
 		
 		// read vertices 
-		tf::Vector3 v1(0,0,0);
-		tf::Vector3 v2(0,0,0);
-		tf::Vector3 v3(0,0,0);
+		tf2::Vector3 v1(0,0,0);
+		tf2::Vector3 v2(0,0,0);
+		tf2::Vector3 v3(0,0,0);
 		
 		v1.setX(*(float*)pos);
 		pos += 4;
@@ -526,7 +529,9 @@ namespace shapes
       const aiScene* scene = importer.ReadFile(resource_path, aiProcess_SortByPType|aiProcess_GenNormals|aiProcess_Triangulate|aiProcess_GenUVCoords|aiProcess_FlipUVs);
       if (!scene)
       {
-        ROS_ERROR("Could not load resource [%s]: %s", resource_path.c_str(), importer.GetErrorString());
+        // ROS_ERRORをRCLCPP_ERRORに置き換え
+        RCLCPP_ERROR(rclcpp::get_logger("robot_self_filter"), "Could not load resource [%s]: %s", 
+                     resource_path.c_str(), importer.GetErrorString());
         return NULL;
       }
       return meshFromAssimpScene(resource_path, scene);

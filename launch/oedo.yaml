@@ -1,0 +1,37 @@
+# Description: This file is used to launch the robot_self_filter node
+
+# ノード名を明示的に指定する必要があります
+/self_filter:  # ノード名をここに記述
+  ros__parameters:
+    # The frame in which the filtered points will be published
+    sensor_frame: "livox_frame"
+    # The TF timeout
+    tf_timeout: 0.5
+    # The maximum number of frames to cache
+    max_cache_time: 2.0
+    
+    # Point cloud topic to subscribe to
+    input_cloud_topic: "/livox/lidar"
+    # Filtered point cloud topic to publish
+    output_cloud_topic: "/livox/lidar_filtered"
+    
+    robot_description: "/robot_description"
+    # Link names for the robot parts to filter
+    self_see_links:
+      -  "base_footprint"
+      -  "base_link"
+      -  "boom_link"
+      -  "swing_link"
+      -  "bucket_link"
+      -  "arm_link"
+      -  "dozer_link"
+      -  "right_crawler_link"
+      -  "left_crawler_link"
+      -  "tip_link"
+      -  "livox_frame"
+        
+        
+    # Self filter parameters
+    self_see_default_padding: 0.05
+    self_see_default_scale: 1.1
+    self_see_other_link_padding: 0.05

@@ -37,8 +37,8 @@
 #ifndef GEOMETRIC_SHAPES_POINT_INCLUSION_
 #define GEOMETRIC_SHAPES_POINT_INCLUSION_
 
-#include "robot_self_filter/shapes.h"
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include "robot_self_filter_oedo/shapes.h"
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 // #include <BulletCollision/CollisionShapes/btBvhTriangleMeshShape.h>
 // #include <BulletCollision/CollisionShapes/btTriangleMesh.h>
 #include <vector>

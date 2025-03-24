@@ -34,7 +34,7 @@
 
 /** \author Ioan Sucan */
 
-#include "robot_self_filter/bodies.h"
+#include "robot_self_filter_oedo/bodies.h"
 #include <LinearMath/btConvexHull.h>
 // #include <BulletCollision/CollisionShapes/btTriangleShape.h>
 #include <algorithm>

@@ -30,9 +30,10 @@
 #ifndef FILTERS_SELF_SEE_H_
 #define FILTERS_SELF_SEE_H_
 
-#include <filters/filter_base.h>
-#include <robot_self_filter/self_mask.h>
-#include <rclcpp/logging.hpp>
+#include <filters/filter_base.hpp>
+#include <robot_self_filter_oedo/self_mask.h>
+#include <rclcpp/rclcpp.hpp>
+#include <memory>
 
 namespace filters
 {
@@ -42,68 +43,47 @@ namespace filters
  */
 
 template <typename PointT>
-class SelfFilter: public FilterBase <pcl::PointCloud<PointT> >
+class SelfFilter: public FilterBase<pcl::PointCloud<PointT>>
 {
     
 public:
   typedef pcl::PointCloud<PointT> PointCloud;
   /** \brief Construct the filter */
-  SelfFilter(ros::NodeHandle nh) : nh_(nh)
+  SelfFilter(rclcpp::Node::SharedPtr node) : node_(node)
   {
-    nh_.param<double>("min_sensor_dist", min_sensor_dist_, 0.01);
+    node_->get_parameter_or("min_sensor_dist", min_sensor_dist_, 0.01);
     double default_padding, default_scale;
-    nh_.param<double>("self_see_default_padding", default_padding, .01);
-    nh_.param<double>("self_see_default_scale", default_scale, 1.0);
-    nh_.param<bool>("keep_organized", keep_organized_, false);
+    node_->get_parameter_or("self_see_default_padding", default_padding, 0.01);
+    node_->get_parameter_or("self_see_default_scale", default_scale, 1.0);
+    node_->get_parameter_or("keep_organized", keep_organized_, false);
     std::vector<robot_self_filter::LinkInfo> links;	
-    std::string link_names;
     
-    if(!nh_.hasParam("self_see_links")) {
-      ROS_WARN("No links specified for self filtering.");
-    } else {     
-
-      XmlRpc::XmlRpcValue ssl_vals;;
-      
-      nh_.getParam("self_see_links", ssl_vals);
-      if(ssl_vals.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-        ROS_WARN("Self see links need to be an array");
-        
+    if(!node_->has_parameter("self_see_links")) {
+      RCLCPP_WARN(node_->get_logger(), "No links specified for self filtering.");
+    } else {
+      auto ssl_vals = node_->get_parameter("self_see_links").as_string_array();
+      if(ssl_vals.empty()) {
+        RCLCPP_WARN(node_->get_logger(), "No values in self see links array");
       } else {
-        if(ssl_vals.size() == 0) {
-          ROS_WARN("No values in self see links array");
-        } else {
-          for(int i = 0; i < ssl_vals.size(); i++) {
-            robot_self_filter::LinkInfo li;
-            
-            if(ssl_vals[i].getType() != XmlRpc::XmlRpcValue::TypeStruct) {
-              ROS_WARN("Self see links entry %d is not a structure.  Stopping processing of self see links",i);
-              break;
-            }
-            if(!ssl_vals[i].hasMember("name")) {
-              ROS_WARN("Self see links entry %d has no name.  Stopping processing of self see links",i);
-              break;
-            } 
-            li.name = std::string(ssl_vals[i]["name"]);
-            if(!ssl_vals[i].hasMember("padding")) {
-              ROS_DEBUG("Self see links entry %d has no padding.  Assuming default padding of %g",i,default_padding);
-              li.padding = default_padding;
-            } else {
-              li.padding = ssl_vals[i]["padding"];
-            }
-            if(!ssl_vals[i].hasMember("scale")) {
-              ROS_DEBUG("Self see links entry %d has no scale.  Assuming default scale of %g",i,default_scale);
-              li.scale = default_scale;
-            } else {
-              li.scale = ssl_vals[i]["scale"];
-            }
-            links.push_back(li);
-          }
-        }      
+        for(const auto& link_str : ssl_vals) {
+          robot_self_filter::LinkInfo li;
+          // Parse the link_str to get name, padding, scale
+          // This is a simplified example, actual implementation may need more robust parsing
+          li.name = link_str; // Basic implementation
+          li.padding = default_padding;
+          li.scale = default_scale;
+          links.push_back(li);
+        }
       }
     }
-    sm_ = new robot_self_filter::SelfMask<PointT>(tf2_, links);
+    
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+    RCLCPP_INFO(node_->get_logger(),"selfmask method called");
+    sm_ = new robot_self_filter::SelfMask<PointT>(tf_buffer_, links, node_);
     if (!sensor_frame_.empty())
-      ROS_INFO("Self filter is removing shadow points for sensor in frame '%s'. Minimum distance to sensor is %f.", sensor_frame_.c_str(), min_sensor_dist_);
+      RCLCPP_INFO(node_->get_logger(), "Self filter is removing shadow points for sensor in frame '%s'. Minimum distance to sensor is %f.", 
+                 sensor_frame_.c_str(), min_sensor_dist_);
   }
     
   /** \brief Destructor to clean up
@@ -117,10 +97,10 @@ public:
   {
     // keep only the points that are outside of the robot
     // for testing purposes this may be changed to true
-    nh_.param("invert", invert_, false);
+    node_->get_parameter_or("invert", invert_, false);
     
     if (invert_)
-      ROS_INFO("Inverting filter output");
+      RCLCPP_INFO(node_->get_logger(), "Inverting filter output");
 	
     return true;
   }
@@ -236,24 +216,28 @@ public:
   }
 
   robot_self_filter::SelfMask<PointT>* getSelfMask() {
+    RCLCPP_INFO(node_->get_logger(),"getselfmask method called");
     return sm_;
   }
 
   void setSensorFrame(const std::string& frame) {
     sensor_frame_ = frame;
   }
+
+  // 正しいコールバック宣言
+  void cloudCallback(const std::shared_ptr<const sensor_msgs::msg::PointCloud2>& cloud);
     
 protected:
     
-  tf2::TransformListener tf2_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   robot_self_filter::SelfMask<PointT>* sm_;
   
-  ros::NodeHandle nh_;
+  rclcpp::Node::SharedPtr node_;
   bool invert_;
   std::string sensor_frame_;
   double min_sensor_dist_;
   bool keep_organized_;
-  
 };
 
 }

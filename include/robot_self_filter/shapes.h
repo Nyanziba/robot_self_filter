@@ -39,7 +39,7 @@
 
 #include <cstdlib>
 #include <vector>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 /** Definition of various shapes. No properties such as position are
     included. These are simply the descriptions and dimensions of
