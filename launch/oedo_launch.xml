@@ -11,13 +11,12 @@
   <arg name="use_robot_description" default="true"/>
   <arg name="description_path" default="$(find-pkg-share sk75sr_bringup)/urdf/sk75sr_with_livox.urdf.xacro"/>
   <arg name="robot_description" default="$(command 'xacro $(var description_path)')" />
-  <arg name="config_path" default="$(find-pkg-share robot_self_filter)/launch/oedo.yaml"/>
+  <arg name="config_path" default="$(find-pkg-share robot_self_filter_oedo)/launch/oedo.yaml"/>
 
 
-  <node pkg="robot_self_filter" exec="self_filter" name="self_filter" output="screen" args="--ros-args --log-level INFO">
+  <node pkg="robot_self_filter_oedo" exec="self_filter" name="self_filter" output="screen" args="--ros-args --log-level INFO">
     <param from="$(var config_path)"/>
     <param name="use_sim_time" value="$(var use_sim_time)"/>
-    <param name="log-level" value="DEBUG"/>
     <param name="robot_description" value="$(var robot_description)"/>  
   </node>
 </launch>

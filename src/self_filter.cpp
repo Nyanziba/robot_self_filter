@@ -61,7 +61,6 @@ public:
     this->declare_parameter("max_queue_size", 10);
     this->declare_parameter("self_see_links", std::vector<std::string>());
     this->declare_parameter("robot_description", std::string());
-    RCLCPP_INFO(this->get_logger(),"robot_description is %s", this->get_parameter("robot_description").as_string().c_str());
     RCLCPP_INFO(this->get_logger(), "sensor frame is set to %s", this->get_parameter("sensor_frame").as_string().c_str());
     RCLCPP_INFO(this->get_logger(), "self_filter_link_names are these:");
     try {
