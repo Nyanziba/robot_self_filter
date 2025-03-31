@@ -207,7 +207,7 @@ private:
       pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ>);
       pcl::fromROSMsg(*cloud, *pcl_cloud);
       pcl::VoxelGrid<pcl::PointXYZ>::Ptr grid(new pcl::VoxelGrid<pcl::PointXYZ>);
-      grid->setLeafSize(0.2, 0.2, 0.2);
+      grid->setLeafSize(0.3, 0.3, 0.3);
       grid->setInputCloud(pcl_cloud);
       grid->filter(*pcl_cloud);
       pcl::PointCloud<pcl::PointXYZ> out;

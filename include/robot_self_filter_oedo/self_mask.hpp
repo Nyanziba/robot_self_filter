@@ -44,6 +44,7 @@
 #include <urdf/model.h>
 #include <resource_retriever/retriever.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <visualization_msgs/msgs/MarkerArray.hpp>
 
 namespace robot_self_filter
 {
