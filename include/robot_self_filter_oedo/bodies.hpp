@@ -37,7 +37,7 @@
 #ifndef GEOMETRIC_SHAPES_POINT_INCLUSION_
 #define GEOMETRIC_SHAPES_POINT_INCLUSION_
 
-#include "robot_self_filter_oedo/shapes.h"
+#include "robot_self_filter_oedo/shapes.hpp"
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 // #include <BulletCollision/CollisionShapes/btBvhTriangleMeshShape.h>
 // #include <BulletCollision/CollisionShapes/btTriangleMesh.h>
@@ -194,6 +194,11 @@ namespace bodies
 	virtual void computeBoundingSphere(BoundingSphere &sphere) const;
 	virtual bool intersectsRay(const tf2::Vector3& origin, const tf2::Vector3 &dir, std::vector<tf2::Vector3> *intersections = NULL, unsigned int count = 0) const;
 
+    double getScaledRadius() const
+    {
+        return m_scale * m_radius;
+    }
+
     protected:
 	
 	virtual void useDimensions(const shapes::Shape *shape);
@@ -228,6 +233,16 @@ namespace bodies
 	virtual double computeVolume(void) const;
 	virtual void computeBoundingSphere(BoundingSphere &sphere) const;
 	virtual bool intersectsRay(const tf2::Vector3& origin, const tf2::Vector3 &dir, std::vector<tf2::Vector3> *intersections = NULL, unsigned int count = 0) const;
+
+    double getScaledRadius() const
+    {
+        return m_scale * m_radius;
+    }
+
+    double getScaledHalfLength() const
+    {
+        return m_scale * m_length / 2.0;
+    }
 
     protected:
 	
@@ -273,6 +288,21 @@ namespace bodies
 	virtual double computeVolume(void) const;
 	virtual void computeBoundingSphere(BoundingSphere &sphere) const;
 	virtual bool intersectsRay(const tf2::Vector3& origin, const tf2::Vector3 &dir, std::vector<tf2::Vector3> *intersections = NULL, unsigned int count = 0) const;
+
+    double getScaledHalfLength() const
+    {
+        return m_scale * m_length / 2.0;
+    }
+
+    double getScaledHalfWidth() const
+    {
+        return m_scale * m_width / 2.0;
+    }
+
+    double getScaledHalfHeight() const
+    {
+        return m_scale * m_height / 2.0;
+    }
 
     protected:
 	
@@ -375,6 +405,16 @@ namespace bodies
 	
 	virtual void computeBoundingSphere(BoundingSphere &sphere) const;
 	virtual bool intersectsRay(const tf2::Vector3& origin, const tf2::Vector3 &dir, std::vector<tf2::Vector3> *intersections = NULL, unsigned int count = 0) const;
+
+    const std::vector<tf2::Vector3>& getScaledVertices() const
+    {
+        return m_scaledVertices;
+    }
+
+    const std::vector<unsigned int>& getTriangles() const
+    {
+        return m_triangles;
+    }
 
     protected:
 	

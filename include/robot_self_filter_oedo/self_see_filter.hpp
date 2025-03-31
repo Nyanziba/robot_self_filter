@@ -31,9 +31,13 @@
 #define FILTERS_SELF_SEE_H_
 
 #include <filters/filter_base.hpp>
-#include <robot_self_filter_oedo/self_mask.h>
+#include <robot_self_filter_oedo/self_mask.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <memory>
+// 追加するヘッダ
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#include <pcl_conversions/pcl_conversions.h>
 
 namespace filters
 {
@@ -76,6 +80,10 @@ public:
         }
       }
     }
+    
+    // マーカーパブリッシャーの初期化
+    marker_publisher_ = node_->create_publisher<visualization_msgs::msg::MarkerArray>(
+      "robot_self_filter/visualization_markers", 10);
     
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -219,6 +227,10 @@ public:
     RCLCPP_INFO(node_->get_logger(),"getselfmask method called");
     return sm_;
   }
+  void publishShapeFromMask(const sensor_msgs::msg::PointCloud2::SharedPtr& cloud, const std::vector<int>& mask) {
+    // Implement the publishShapeFromMask function here
+    // This function should publish the shape from the mask
+  }
 
   void setSensorFrame(const std::string& frame) {
     sensor_frame_ = frame;
@@ -238,6 +250,9 @@ protected:
   std::string sensor_frame_;
   double min_sensor_dist_;
   bool keep_organized_;
+  
+  // マーカーパブリッシャー
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
 };
 
 }

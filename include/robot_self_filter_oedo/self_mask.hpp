@@ -32,7 +32,7 @@
 
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <robot_self_filter_oedo/bodies.h>
+#include <robot_self_filter_oedo/bodies.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <functional>
@@ -44,7 +44,8 @@
 #include <urdf/model.h>
 #include <resource_retriever/retriever.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <visualization_msgs/msgs/MarkerArray.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 namespace robot_self_filter
 {
@@ -422,6 +423,11 @@ struct LinkInfo
         {
           for (unsigned int i = 0 ; i < bodies_.size() ; ++i)
             frames.push_back(bodies_[i].name);
+        }
+
+        // 追加: bodiesにアクセスするためのメソッド
+        const std::vector<SeeLink>& getBodies() const {
+            return bodies_;
         }
 	
     protected:

@@ -41,7 +41,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker.hpp>
-#include "robot_self_filter_oedo/self_mask.h"
+#include "robot_self_filter_oedo/self_mask.hpp"
 
 class TestSelfFilter : public rclcpp::Node
 {

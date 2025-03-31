@@ -36,7 +36,7 @@
 #include <cmath>
 #include <algorithm>
 #include <set>
-#include "robot_self_filter_oedo/shapes.h"
+#include "robot_self_filter_oedo/shapes.hpp"
 #include <resource_retriever/retriever.hpp>
 #include <rcpputils/asserts.hpp>
 #include <tinyxml.h>

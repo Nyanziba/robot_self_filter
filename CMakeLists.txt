@@ -12,6 +12,7 @@ endif()
 # 必要なパッケージを明示的に検索
 find_package(ament_cmake_auto REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(resource_retriever REQUIRED)  # resource_retrieverパッケージを追加
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ASSIMP REQUIRED assimp)
@@ -35,6 +36,7 @@ target_include_directories(robot_geometric_shapes PUBLIC
   ${tf2_geometry_msgs_INCLUDE_DIRS}  # tf2_geometry_msgsのインクルードパスを追加
   ${resource_retriever_INCLUDE_DIRS}  # resource_retrieverのインクルードパスを追加
   ${ASSIMP_INCLUDE_DIRS}  # Assimpのインクルードディレクトリを追加
+  ${visualization_msgs_INCLUDE_DIRS}
 )
 
 # 依存関係を追加
@@ -42,6 +44,7 @@ target_link_libraries(robot_geometric_shapes
   ${tf2_geometry_msgs_LIBRARIES}
   ${resource_retriever_LIBRARIES}  # resource_retrieverライブラリを追加
   ${ASSIMP_LIBRARIES}  # Assimpライブラリを追加
+  ${visualization_msgs_LIBRARIES}
 )
 
 # robot_self_filterのメインライブラリを作成
