@@ -62,7 +62,11 @@ public:
     this->declare_parameter("self_see_links", std::vector<std::string>());
     this->declare_parameter("robot_description", std::string());
     this->declare_parameter("min_sensor_dist", 1.0);
+    this->declare_parameter("input_cloud_topic", std::string("/livox/lidar"));
+    this->declare_parameter("output_cloud_topic", std::string("/livox/lidar_filtered"));
     this->get_parameter("min_sensor_dist", min_sensor_dist_);
+    this->get_parameter("input_cloud_topic", input_cloud_topic_);
+    this->get_parameter("output_cloud_topic", output_cloud_topic_);
     RCLCPP_INFO(this->get_logger(), "sensor frame is set to %s", this->get_parameter("sensor_frame").as_string().c_str());
     RCLCPP_INFO(this->get_logger(), "self_filter_link_names are these:");
     try {
@@ -122,7 +126,7 @@ public:
     
     // Create a publisher with QoS profile
     rclcpp::QoS qos(1);
-    pointCloudPublisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("cloud_out", qos);
+    pointCloudPublisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(output_cloud_topic_, qos);
     
     // マーカーパブリッシャーの初期化
     marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
@@ -170,7 +174,7 @@ private:
     {
       RCLCPP_INFO(this->get_logger(), "Valid frames were passed in. We'll filter them.");
       sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>>(
-        this, "/livox/lidar", rclcpp::QoS(max_queue_size_).get_rmw_qos_profile());
+        this, input_cloud_topic_, rclcpp::QoS(max_queue_size_).get_rmw_qos_profile());
       
       mn_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
         *sub_, *tf_buffer_, sensor_frame_, max_queue_size_, this->get_node_logging_interface(), 
@@ -188,7 +192,13 @@ private:
   }
     
   void cloudCallback(const std::shared_ptr<const sensor_msgs::msg::PointCloud2>& cloud) 
-  {
+  { 
+      // センサーフレームが指定されており、かつ入力点群のframe_idが異なる場合は処理をスキップ
+  if (!sensor_frame_.empty() && cloud->header.frame_id != sensor_frame_) {
+    // フレームIDが一致しない場合は、そのまま未フィルタリングのデータを転送
+    RCLCPP_INFO(this->get_logger(), "Skipping filtering for cloud with frame_id '%s', as it doesn't match sensor_frame '%s'", 
+                cloud->header.frame_id.c_str(), sensor_frame_.c_str());
+                return;}
     RCLCPP_INFO(this->get_logger(), "Got pointcloud that is %f seconds old", 
                 (this->now() - rclcpp::Time(cloud->header.stamp)).seconds());
     std::vector<int> mask;
@@ -490,6 +500,8 @@ private:
   filters::SelfFilter<pcl::PointXYZ> *self_filter_{nullptr};
   filters::SelfFilter<pcl::PointXYZRGB> *self_filter_rgb_{nullptr};
   std::string sensor_frame_;
+  std::string input_cloud_topic_;
+  std::string output_cloud_topic_;
   std::vector<std::string> self_see_links_;
   bool use_rgb_;
   bool subscribing_;
